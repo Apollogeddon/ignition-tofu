@@ -58,6 +58,10 @@ tasks:
       TF_ACC_PROVIDER_HOST: registry.opentofu.org
     cmds:
       - TF_ACC_TERRAFORM_PATH="$(.github/scripts/install-tofu.sh)" go test -v ./internal/provider/...
+  docs:
+    desc: Generate the provider reference into docs/ with tfplugindocs, as the webpage build does
+    cmds:
+      - bash .github/scripts/ci/generate-docs.sh
   commit-msg:
     desc: Check a commit message file against Conventional Commits
     cmds:
