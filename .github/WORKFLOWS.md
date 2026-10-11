@@ -77,7 +77,7 @@ The [`webpage.yaml`](./workflows/webpage.yaml) workflow builds and deploys the [
 - **Markdown**: lints every Markdown file in the repository with `markdownlint-cli2`.
 - **Generated content**: before each install, forgejs installs Go from `go.mod` and runs the pre-build command, which generates the provider reference with `tfplugindocs` from the schema OpenTofu reports and from `examples/`, copies it into the site with `migrate-docs.sh`, and writes the provider network mirror (`generate-mirror.sh`) from the releases.
 - **Quality**: Gitleaks over the whole repository, OSV-Scanner on the site's dependencies, Biome and the type check.
-- **Build**: builds the site. The build also runs on pull requests, so a broken site fails the pull request.
+- **Build**: builds the site, then checks its internal links with lychee and every page against WCAG 2.2 A and AA with axe. The build also runs on pull requests, so a broken or inaccessible site fails the pull request.
 - **Deploy**: on `main`, publishes the site to GitHub Pages, and commits OSV-Scanner's security patches to the site's dependencies.
 
 ## Configuration
