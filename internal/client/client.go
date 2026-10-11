@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -154,6 +156,18 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	return bodyBytes, nil
 }
 
+// apiPath appends each segment to base, escaped, so a name holding ?, #, / or %
+// stays one path segment rather than becoming a query, fragment or extra segment.
+func apiPath(base string, segments ...string) string {
+	var b strings.Builder
+	b.WriteString(base)
+	for _, s := range segments {
+		b.WriteByte('/')
+		b.WriteString(url.PathEscape(s))
+	}
+	return b.String()
+}
+
 func statusError(status int, body []byte) error {
 	var apiErr APIErrorResponse
 	if err := json.Unmarshal(body, &apiErr); err == nil &&
@@ -168,7 +182,7 @@ func (c *Client) GetResource(ctx context.Context, resourceType, name string, des
 }
 
 func (c *Client) GetResourceWithModule(ctx context.Context, module, resourceType, name string, dest any) error {
-	path := fmt.Sprintf("/data/api/v1/resources/find/%s/%s/%s", module, resourceType, name)
+	path := apiPath("/data/api/v1/resources/find", module, resourceType, name)
 	body, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return err
@@ -180,7 +194,7 @@ func (c *Client) GetResourceWithModule(ctx context.Context, module, resourceType
 // no name of its own, e.g. gateway network settings), which the API exposes
 // under a dedicated path rather than the name-based find endpoint.
 func (c *Client) GetResourceSingleton(ctx context.Context, module, resourceType string, dest any) error {
-	path := fmt.Sprintf("/data/api/v1/resources/singleton/%s/%s", module, resourceType)
+	path := apiPath("/data/api/v1/resources/singleton", module, resourceType)
 	body, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return err
@@ -194,7 +208,7 @@ func (c *Client) createOrUpdate(ctx context.Context, method, module, resourceTyp
 		return err
 	}
 
-	path := fmt.Sprintf("/data/api/v1/resources/%s/%s", module, resourceType)
+	path := apiPath("/data/api/v1/resources", module, resourceType)
 	body, err := c.doRequest(ctx, method, path, rb)
 	if err != nil {
 		return err
@@ -220,7 +234,7 @@ func (c *Client) updateSingleton(ctx context.Context, module, resourceType strin
 		return err
 	}
 
-	path := fmt.Sprintf("/data/api/v1/resources/%s/%s", module, resourceType)
+	path := apiPath("/data/api/v1/resources", module, resourceType)
 	if _, err := c.doRequest(ctx, http.MethodPut, path, rb); err != nil {
 		return err
 	}
@@ -241,7 +255,7 @@ func (c *Client) DeleteResource(ctx context.Context, resourceType, name, signatu
 }
 
 func (c *Client) DeleteResourceWithModule(ctx context.Context, module, resourceType, name, signature string) error {
-	path := fmt.Sprintf("/data/api/v1/resources/%s/%s/%s/%s", module, resourceType, name, signature)
+	path := apiPath("/data/api/v1/resources", module, resourceType, name, signature)
 	_, err := c.doRequest(ctx, http.MethodDelete, path, nil)
 	return err
 }
@@ -595,7 +609,7 @@ func (c *Client) DeleteDevice(ctx context.Context, n, s string) error {
 }
 
 func (c *Client) GetProject(ctx context.Context, name string) (*Project, error) {
-	body, err := c.doRequest(ctx, http.MethodGet, "/data/api/v1/projects/find/"+name, nil)
+	body, err := c.doRequest(ctx, http.MethodGet, apiPath("/data/api/v1/projects/find", name), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -619,14 +633,14 @@ func (c *Client) UpdateProject(ctx context.Context, p Project) (*Project, error)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := c.doRequest(ctx, http.MethodPut, "/data/api/v1/projects/"+p.Name, rb); err != nil {
+	if _, err := c.doRequest(ctx, http.MethodPut, apiPath("/data/api/v1/projects", p.Name), rb); err != nil {
 		return nil, err
 	}
 	return c.waitForProject(ctx, p.Name)
 }
 
 func (c *Client) DeleteProject(ctx context.Context, name string) error {
-	_, err := c.doRequest(ctx, http.MethodDelete, "/data/api/v1/projects/"+name, nil)
+	_, err := c.doRequest(ctx, http.MethodDelete, apiPath("/data/api/v1/projects", name), nil)
 	return err
 }
 
