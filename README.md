@@ -125,9 +125,10 @@ go tool -modfile=.forgego/task/go.mod task lint      # format and lint
 go tool -modfile=.forgego/task/go.mod task test      # unit tests
 docker compose up -d                                 # start a test gateway on localhost:8088
 go tool -modfile=.forgego/task/go.mod task test:acc  # acceptance tests against that gateway
+go tool -modfile=.forgego/task/go.mod task docs      # generate the provider reference into docs/
 ```
 
-`task test` and `task test:acc` download the OpenTofu release pinned in `.github/scripts/install-tofu.sh` into `.bin/` and run against it. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), which release-please uses to version releases. To preview the reference documentation, run `.github/scripts/ci/generate-docs.sh` and then `.github/scripts/ci/migrate-docs.sh`; git ignores their output.
+`task test` and `task test:acc` download the OpenTofu release pinned in `.github/scripts/install-tofu.sh` into `.bin/` and run against it. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), which release-please uses to version releases. `task docs` generates the provider reference into `docs/` with tfplugindocs, in the Terraform registry's layout, from each resource's schema descriptions and its examples under `examples/` (`resource.tf`, `data-source.tf` and `import.sh`). To preview it on the webpage, run `bash .github/scripts/ci/migrate-docs.sh` next. Git ignores both outputs, and CI generates them again for every build. Every attribute needs a description; `task test` fails on one without.
 
 ## License
 

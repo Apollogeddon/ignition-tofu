@@ -63,19 +63,22 @@ func (r *StoreAndForwardResource) Schema(ctx context.Context, req resource.Schem
 	maintenancePolicySchema := schema.NestedAttributeObject{
 		Attributes: map[string]schema.Attribute{
 			"action": schema.StringAttribute{
-				Required: true,
+				Description: "What happens when the limit is reached (EVICT_OLDEST_DATA, PREVENT_NEW_DATA).",
+				Required:    true,
 				Validators: []validator.String{
 					stringvalidator.OneOf("EVICT_OLDEST_DATA", "PREVENT_NEW_DATA"),
 				},
 			},
 			"limit_type": schema.StringAttribute{
-				Required: true,
+				Description: "What the limit is measured in (TIME_DURATION, COUNT, FILE_SIZE).",
+				Required:    true,
 				Validators: []validator.String{
 					stringvalidator.OneOf("TIME_DURATION", "COUNT", "FILE_SIZE"),
 				},
 			},
 			"value": schema.Int64Attribute{
-				Required: true,
+				Description: "The limit, in the units of limit_type.",
+				Required:    true,
 			},
 		},
 	}

@@ -10,6 +10,7 @@ pre-commit:
       run: go tool -modfile=.forgego/task/go.mod task sync-check
     shellcheck:
       glob: "*.sh"
+      exclude: "examples/**/import.sh"
       # CI runs shellcheck on every script, so the hook doesn't insist it's installed
       run: |
         if command -v shellcheck >/dev/null; then shellcheck {staged_files}
