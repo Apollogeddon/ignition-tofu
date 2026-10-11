@@ -49,13 +49,16 @@ func (d *StoreAndForwardDataSource) Schema(ctx context.Context, req datasource.S
 	maintenancePolicySchema := schema.NestedAttributeObject{
 		Attributes: map[string]schema.Attribute{
 			"action": schema.StringAttribute{
-				Computed: true,
+				Description: "What happens when the limit is reached (EVICT_OLDEST_DATA, PREVENT_NEW_DATA).",
+				Computed:    true,
 			},
 			"limit_type": schema.StringAttribute{
-				Computed: true,
+				Description: "What the limit is measured in (TIME_DURATION, COUNT, FILE_SIZE).",
+				Computed:    true,
 			},
 			"value": schema.Int64Attribute{
-				Computed: true,
+				Description: "The limit, in the units of limit_type.",
+				Computed:    true,
 			},
 		},
 	}
@@ -79,36 +82,46 @@ func (d *StoreAndForwardDataSource) Schema(ctx context.Context, req datasource.S
 				Computed:    true,
 			},
 			"time_threshold_ms": schema.Int64Attribute{
-				Computed: true,
+				Description: "Maximum time data accumulates in memory before writing to disk.",
+				Computed:    true,
 			},
 			"forward_rate_ms": schema.Int64Attribute{
-				Computed: true,
+				Description: "Rate at which data is eligible for forwarding.",
+				Computed:    true,
 			},
 			"forwarding_policy": schema.StringAttribute{
-				Computed: true,
+				Description: "Policy for forwarding (ALL, PRIMARY_ONLY, SECONDARY_ONLY).",
+				Computed:    true,
 			},
 			"forwarding_schedule": schema.StringAttribute{
-				Computed: true,
+				Description: "Comma separated list of time ranges (e.g. 9:00-15:00).",
+				Computed:    true,
 			},
 			"is_third_party": schema.BoolAttribute{
-				Computed: true,
+				Description: "Whether the engine is managed by a third party.",
+				Computed:    true,
 			},
 			"data_threshold": schema.Int64Attribute{
-				Computed: true,
+				Description: "Maximum data amount in memory before writing to disk.",
+				Computed:    true,
 			},
 			"batch_size": schema.Int64Attribute{
-				Computed: true,
+				Description: "Batch size for forwarding.",
+				Computed:    true,
 			},
 			"scan_rate_ms": schema.Int64Attribute{
-				Computed: true,
+				Description: "Rate at which data pipelines are scanned.",
+				Computed:    true,
 			},
 			"primary_policy": schema.SingleNestedAttribute{
-				Computed:   true,
-				Attributes: maintenancePolicySchema.Attributes,
+				Description: "Maintenance policy for primary datastore (memory).",
+				Computed:    true,
+				Attributes:  maintenancePolicySchema.Attributes,
 			},
 			"secondary_policy": schema.SingleNestedAttribute{
-				Computed:   true,
-				Attributes: maintenancePolicySchema.Attributes,
+				Description: "Maintenance policy for secondary datastore (disk).",
+				Computed:    true,
+				Attributes:  maintenancePolicySchema.Attributes,
 			},
 		},
 	}
