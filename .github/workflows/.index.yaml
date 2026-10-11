@@ -85,7 +85,8 @@ jobs:
             | tar -xJ -C "$RUNNER_TEMP" --strip-components=1 "shellcheck-$VERSION/shellcheck"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - name: shellcheck
-        run: git ls-files -z '*.sh' | xargs -0 shellcheck
+        # the examples' import.sh files are command lines the provider docs show, not scripts
+        run: git ls-files -z '*.sh' ':!:examples/**/import.sh' | xargs -0 shellcheck
 
   # forgego's lint, tidy, govulncheck and OSV checks, the unit tests and the build.
   # Gitleaks runs in webpage.yaml, over the whole repository.
