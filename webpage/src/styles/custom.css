@@ -38,6 +38,8 @@
   --sl-color-accent: #d946ef;
   --sl-color-accent-rgb: 217, 70, 239;
   --sl-color-accent-high: #fae8ff;
+  /* accent for text on the accent-low background, 4.5:1 or more */
+  --sl-color-accent-text: #e879f9;
 
   /* Semantic Text Colors */
   --sl-color-white: #ffffff;
@@ -72,6 +74,7 @@
   --sl-color-accent: #c026d3;
   --sl-color-accent-rgb: 192, 38, 211;
   --sl-color-accent-high: #701a75;
+  --sl-color-accent-text: #a21caf;
   /* the shared secondary is too pale for the heading gradient on white */
   --sl-color-accent-secondary: #d946ef;
 
@@ -135,7 +138,7 @@ h6 {
 .footer-content p {
   margin: 0.5rem 0;
   font-size: 0.875rem;
-  color: var(--sl-color-gray-4);
+  color: var(--sl-color-text-muted);
 }
 
 :root[data-theme="light"] .custom-footer {
@@ -160,7 +163,7 @@ h6 {
 .sidebar-link.active {
   background-color: var(--sl-color-accent-low);
   border-left: 3px solid var(--sl-color-accent);
-  color: var(--sl-color-accent);
+  color: var(--sl-color-accent-text);
   font-weight: 600;
 }
 
@@ -217,7 +220,7 @@ h6 {
 
 .prose code:not(pre code) {
   background: var(--sl-color-accent-low);
-  color: var(--sl-color-accent);
+  color: var(--sl-color-accent-text);
   padding: 0.2rem 0.4rem;
   border-radius: 4px;
   font-size: 0.9em;
@@ -252,3 +255,52 @@ h6 {
   color: var(--sl-color-text);
   font-style: italic;
 }
+
+/*
+  Accessibility
+*/
+
+/* hidden until a keyboard user tabs to it */
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 200;
+  padding: 0.5rem 1rem;
+  border-radius: var(--sl-border-radius);
+  background: var(--sl-color-bg);
+  color: var(--sl-color-text);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+main:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
+/* Shiki's github-dark comments are #6a737d, 3:1 on its background; this one is 5.3:1 */
+.astro-code span[style*="#6A737D" i] {
+  /* biome-ignore lint/complexity/noImportantStyles: Shiki sets the colour inline */
+  color: #959da5 !important;
+}
+
+/* biome-ignore-start lint/complexity/noImportantStyles: it must win over every component's own animation */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* biome-ignore-end lint/complexity/noImportantStyles: the end of the reduced motion rule */
