@@ -65,12 +65,14 @@ func (r *GanGeneralSettingsResource) Schema(ctx context.Context, req resource.Sc
 				Default:     stringdefault.StaticString("gateway-network-settings"),
 			},
 			"description": schema.StringAttribute{
-				Optional: true,
+				Description: "The description of the settings.",
+				Optional:    true,
 			},
 			"enabled": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				Default:  booldefault.StaticBool(true),
+				Description: "Whether the gateway network is enabled.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(true),
 			},
 			"require_ssl": schema.BoolAttribute{
 				Description: "If true, only connections that use SSL will be allowed.",
@@ -104,21 +106,25 @@ func (r *GanGeneralSettingsResource) Schema(ctx context.Context, req resource.Sc
 				Optional:    true,
 			},
 			"allowed_proxy_hops": schema.Float64Attribute{
-				Optional: true,
-				Computed: true,
-				Default:  float64default.StaticFloat64(0),
+				Description: "How many gateways a connection may pass through as proxies; 0 allows none.",
+				Optional:    true,
+				Computed:    true,
+				Default:     float64default.StaticFloat64(0),
 			},
 			"websocket_session_idle_timeout": schema.Float64Attribute{
-				Optional: true,
-				Computed: true,
-				Default:  float64default.StaticFloat64(30000),
+				Description: "How long, in milliseconds, an idle websocket session is kept open.",
+				Optional:    true,
+				Computed:    true,
+				Default:     float64default.StaticFloat64(30000),
 			},
 			"temp_files_max_age_hours": schema.Float64Attribute{
-				Optional: true,
-				Computed: true,
-				Default:  float64default.StaticFloat64(24),
+				Description: "How many hours temporary files from the gateway network are kept.",
+				Optional:    true,
+				Computed:    true,
+				Default:     float64default.StaticFloat64(24),
 			},
 			"signature": schema.StringAttribute{
+				Description: "The signature of the resource.",
 				// No UseStateForUnknown here: unlike id, the signature
 				// genuinely changes on every real update, so the plan must
 				// leave it unknown rather than assume it matches prior state.
