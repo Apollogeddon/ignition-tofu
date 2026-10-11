@@ -229,8 +229,9 @@ func (r *GenericIgnitionResource[T, M]) Delete(ctx context.Context, req resource
 		return
 	}
 
+	// A resource already deleted outside OpenTofu is already where destroy wants it
 	err := r.DeleteFunc(ctx, baseModel.Name.ValueString(), baseModel.Signature.ValueString())
-	if err != nil {
+	if err != nil && !errors.Is(err, client.ErrNotFound) {
 		resp.Diagnostics.AddError("Error deleting resource", err.Error())
 		return
 	}
