@@ -10,9 +10,10 @@ The [`.index.yaml`](./workflows/.index.yaml) workflow runs on every pull request
 2. **shellcheck**: lints every shell script when a script changed.
 3. **Testing and Trivy**: forgego's reusable `testing.yml` and a Trivy scan, in parallel, when the provider changed.
 4. **Ignition**: starts a real Ignition gateway with Docker Compose and runs the acceptance tests against it, after testing and Trivy pass.
-5. **Release**: on `main` only, after every previous check passes.
-6. **Webpage**: on a pull request, the documentation site's checks and build (see [Documentation](#documentation)).
-7. **Auto-merge**: merges a Dependabot pull request through forgego's `merge.yml`, once every job above has passed or been skipped.
+5. **Release**: on `main` only, after every previous check passes (see [Release process](#release-process)).
+6. **Release webpage**: when a release was published, rebuilds and deploys the documentation site, so its provider mirror lists the new release.
+7. **Webpage**: on a pull request, the documentation site's checks and build (see [Documentation](#documentation)).
+8. **Auto-merge**: merges a Dependabot pull request through forgego's `merge.yml`, once every job above has passed or been skipped.
 
 A new push to a pull request cancels its previous run. On `main`, the documentation site runs from its own push trigger.
 
@@ -60,22 +61,24 @@ The unit tests, the acceptance tests and the documentation build all use the Ope
 
 ## Release process
 
-The [`release.yaml`](./workflows/release.yaml) workflow versions and publishes the provider:
+The **Release** job calls [forgego](https://github.com/apollogeddon/forgego)'s [`service.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/service.yml) with `run_checks: false`, as the checks and the acceptance tests above have already passed:
 
-- **Version**: calls [forgego](https://github.com/apollogeddon/forgego)'s `version.yml`, whose release-please manages version bumps and `CHANGELOG.md` from Conventional Commits, and requests a review of the release pull request it opens.
-- **Publish**: when a release was created, GoReleaser builds the provider in the layout the Terraform Registry expects (`.goreleaser.yaml`): a zip per platform, a `SHA256SUMS` file signed with the release GPG key, and the provider manifest (`terraform-registry-manifest.json`). It stays here rather than in forgego's `service.yml`, which doesn't sign the checksums.
-- **Webpage**: rebuilds and deploys the documentation site, so its provider mirror lists the new release.
+- **Version**: forgego's release-please manages version bumps and `CHANGELOG.md` from Conventional Commits, and requests a review of the release pull request it opens.
+- **Release**: when a release was created, GoReleaser builds the provider in the layout the Terraform Registry expects (`.goreleaser.yaml`): a zip per platform, a `SHA256SUMS` file signed with the release GPG key, and the provider manifest (`terraform-registry-manifest.json`). With `gpg_sign: true`, forgego imports the key from the `GPG_PRIVATE_KEY` secret (its passphrase is the `PASSPHRASE` secret) and exports its fingerprint as `GPG_FINGERPRINT`, which the `signs` section of `.goreleaser.yaml` reads.
+
+The **Release webpage** job then rebuilds and deploys the documentation site, so its provider mirror lists the new release.
 
 release-please creates each release as a draft; GoReleaser attaches the files and then publishes it, so the flow also works with immutable releases. Releases are published on GitHub only: the provider is not yet listed on the OpenTofu or Terraform registry. To try the build locally, run `task release:snapshot`, which skips signing.
 
 ## Documentation
 
-The [`webpage.yaml`](./workflows/webpage.yaml) workflow builds and deploys the [Astro](https://astro.build/) documentation site in `webpage/`:
+The [`webpage.yaml`](./workflows/webpage.yaml) workflow builds and deploys the [Astro](https://astro.build/) documentation site in `webpage/`. It calls [forgejs](https://github.com/apollogeddon/forgejs)'s [`website.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/website.yml) with `working_directory: webpage`, after its own Markdown job:
 
-- **Quality**: calls forgejs's `quality.yml`: Gitleaks over the whole repository, OSV-Scanner on the site's dependencies, Biome and the type check.
 - **Markdown**: lints every Markdown file in the repository with `markdownlint-cli2`.
-- **Build**: generates the provider reference with `tfplugindocs` from the schema OpenTofu reports and from `examples/`, copies it into the site with `migrate-docs.sh`, and builds the site. The build also runs on pull requests, so a broken site fails the pull request.
-- **Deploy**: on `main`, publishes the site to GitHub Pages.
+- **Generated content**: before each install, forgejs installs Go from `go.mod` and runs the pre-build command, which generates the provider reference with `tfplugindocs` from the schema OpenTofu reports and from `examples/`, copies it into the site with `migrate-docs.sh`, and writes the provider network mirror (`generate-mirror.sh`) from the releases.
+- **Quality**: Gitleaks over the whole repository, OSV-Scanner on the site's dependencies, Biome and the type check.
+- **Build**: builds the site. The build also runs on pull requests, so a broken site fails the pull request.
+- **Deploy**: on `main`, publishes the site to GitHub Pages, and commits OSV-Scanner's security patches to the site's dependencies.
 
 ## Configuration
 

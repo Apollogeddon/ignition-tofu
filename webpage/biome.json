@@ -2,7 +2,7 @@
   "$schema": "node_modules/@biomejs/biome/configuration_schema.json",
   "extends": ["node_modules/@apollogeddon/forgejs/configs/biome.json"],
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/.astro"]
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/.astro", "!public/providers"]
   },
   "overrides": [
     {

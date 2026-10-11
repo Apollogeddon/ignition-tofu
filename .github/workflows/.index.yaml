@@ -15,7 +15,6 @@ on:
       - docker-compose.yml
       - '.github/workflows/.index.yaml'
       - '.github/workflows/ignition.yaml'
-      - '.github/workflows/release.yaml'
   pull_request:
   workflow_dispatch:
 
@@ -49,7 +48,7 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
-          CODE_INPUTS: '^(go\.(mod|sum)$|main\.go$|internal/|\.forgego/|\.golangci.*\.yml$|Taskfile\.yml$|docker-compose\.yml$|\.github/workflows/(\.index|ignition|release)\.yaml$)'
+          CODE_INPUTS: '^(go\.(mod|sum)$|main\.go$|internal/|\.forgego/|\.golangci.*\.yml$|Taskfile\.yml$|docker-compose\.yml$|\.github/workflows/(\.index|ignition)\.yaml$)'
           SCRIPT_INPUTS: '(\.sh$|^\.github/workflows/\.index\.yaml$)'
         run: |
           # a push or a manual run releases, so it runs the whole pipeline
@@ -130,16 +129,36 @@ jobs:
     uses: ./.github/workflows/ignition.yaml
     secrets: inherit
 
+  # forgego's service pipeline, after the acceptance tests rather than its own checks:
+  # release-please versions the provider and opens the release pull request, and when it
+  # creates a release (as a draft), GoReleaser builds it in the layout the Terraform Registry
+  # expects (.goreleaser.yaml), signs SHA256SUMS with the release GPG key and publishes it.
   release:
     needs: ignition
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/release.yaml
-    secrets: inherit
+    uses: apollogeddon/forgego/.github/workflows/service.yml@main
+    with:
+      run_checks: false
+      gpg_sign: true
+    secrets:
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.PASSPHRASE }}
+    # GitHub checks every called job's permissions, including the ones run_checks skips
     permissions:
       contents: write
       pull-requests: write
-      # then rebuilds the webpage, which installs @apollogeddon/forgejs from GitHub Packages
+
+  # The site serves the provider network mirror. Its push-triggered build ran before
+  # GoReleaser attached this release's files, so build and deploy it again now.
+  release-webpage:
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true'
+    uses: ./.github/workflows/webpage.yaml
+    permissions:
+      contents: write
+      # the webpage installs @apollogeddon/forgejs from GitHub Packages
       packages: read
+      pull-requests: write
       pages: write
       id-token: write
 
@@ -148,7 +167,8 @@ jobs:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/webpage.yaml
     permissions:
-      contents: read
+      # forgejs's website.yml commits OSV security patches on main
+      contents: write
       # the webpage installs @apollogeddon/forgejs from GitHub Packages
       packages: read
       # Gitleaks comments on the pull request when it finds a secret
