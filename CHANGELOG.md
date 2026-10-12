@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.2](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.1...v1.2.2) (2026-10-11)
+
+
+### Bug Fixes
+
+* **client:** Escape names in request paths so ?, #, / and % stay in their segment ([2d8603a](https://github.com/Apollogeddon/ignition-tofu/commit/2d8603a11534331d458cf71250c3b552a6bac69a))
+* **deps:** Override smol-toml to 1.9 past markdownlint-cli2's exact pin ([#82](https://github.com/Apollogeddon/ignition-tofu/issues/82)) ([f0c5d85](https://github.com/Apollogeddon/ignition-tofu/commit/f0c5d85449ae7187c7f7d6adb9758e1968be5222))
+* Escape names in request paths, and destroy resources already deleted on the gateway ([4296d20](https://github.com/Apollogeddon/ignition-tofu/commit/4296d2035a545765dfa08a58fd42be19e967dbb5))
+* **resources:** Treat a resource already deleted on the gateway as destroyed ([a857502](https://github.com/Apollogeddon/ignition-tofu/commit/a8575021ccd3ce21d133d0ec590af844f057c9de))
+* **webpage:** Meet WCAG 2.2 AA and check the site's links and accessibility in CI ([#81](https://github.com/Apollogeddon/ignition-tofu/issues/81)) ([4e5e927](https://github.com/Apollogeddon/ignition-tofu/commit/4e5e9270f9d461bb72faa9a1413363d50a10dbef))
+
 ## [1.2.1](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.0...v1.2.1) (2026-10-10)
 
 
