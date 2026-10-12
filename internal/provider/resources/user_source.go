@@ -145,20 +145,9 @@ func (r *UserSourceResource) MapPlanToClient(ctx context.Context, model *UserSou
 
 func (r *UserSourceResource) MapClientToState(ctx context.Context, name string, config *client.UserSourceConfig, model *UserSourceResourceModel) error {
 	model.Name = types.StringValue(name)
-	if config.Profile.Type != "" {
-		model.Type = types.StringValue(config.Profile.Type)
-	}
-	if config.Profile.FailoverProfile != "" {
-		model.FailoverProfile = types.StringValue(config.Profile.FailoverProfile)
-	} else if model.FailoverProfile.IsNull() || model.FailoverProfile.IsUnknown() {
-		model.FailoverProfile = types.StringNull()
-	}
-
-	if config.Profile.FailoverMode != "" {
-		model.FailoverMode = types.StringValue(config.Profile.FailoverMode)
-	} else if model.FailoverMode.IsNull() || model.FailoverMode.IsUnknown() {
-		model.FailoverMode = types.StringNull()
-	}
+	model.Type = base.GatewayString(model.Type, config.Profile.Type)
+	model.FailoverProfile = base.GatewayString(model.FailoverProfile, config.Profile.FailoverProfile)
+	model.FailoverMode = base.GatewayString(model.FailoverMode, config.Profile.FailoverMode)
 
 	model.ScheduleRestricted = types.BoolValue(config.Profile.ScheduleRestricted)
 	return nil

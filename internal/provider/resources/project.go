@@ -204,15 +204,15 @@ func (r *ProjectResource) MapPlanToClient(ctx context.Context, model *ProjectRes
 
 func (r *ProjectResource) MapClientToState(ctx context.Context, name string, p *client.Project, model *ProjectResourceModel) error {
 	model.Name = types.StringValue(name)
-	model.Description = base.StringToNullableString(p.Description)
-	model.Title = base.StringToNullableString(p.Title)
+	model.Description = base.GatewayString(model.Description, p.Description)
+	model.Title = base.GatewayString(model.Title, p.Title)
 	model.Enabled = types.BoolValue(p.Enabled)
-	model.Parent = base.StringToNullableString(p.Parent)
+	model.Parent = base.GatewayString(model.Parent, p.Parent)
 	model.Inheritable = types.BoolValue(p.Inheritable)
-	model.DefaultDB = base.StringToNullableString(p.DefaultDB)
-	model.TagProvider = base.StringToNullableString(p.TagProvider)
-	model.UserSource = base.StringToNullableString(p.UserSource)
-	model.IdentityProvider = base.StringToNullableString(p.IdentityProvider)
+	model.DefaultDB = base.GatewayString(model.DefaultDB, p.DefaultDB)
+	model.TagProvider = base.GatewayString(model.TagProvider, p.TagProvider)
+	model.UserSource = base.GatewayString(model.UserSource, p.UserSource)
+	model.IdentityProvider = base.GatewayString(model.IdentityProvider, p.IdentityProvider)
 	return nil
 }
 

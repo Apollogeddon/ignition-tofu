@@ -117,7 +117,7 @@ func (r *TagProviderResource) MapPlanToClient(ctx context.Context, model *TagPro
 func (r *TagProviderResource) MapClientToState(ctx context.Context, name string, config *client.TagProviderConfig, model *TagProviderResourceModel) error {
 	model.Name = types.StringValue(name)
 	model.Type = types.StringValue(config.Profile.Type)
-	model.Description = base.StringToNullableString(config.Description)
+	model.Description = base.GatewayString(model.Description, config.Description)
 	return nil
 }
 

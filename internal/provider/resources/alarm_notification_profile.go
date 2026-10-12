@@ -222,13 +222,11 @@ func (r *AlarmNotificationProfileResource) MapClientToState(ctx context.Context,
 				model.EmailConfig.UseSMTPProfile = types.BoolValue(v)
 			}
 
-			if v, ok := settings["emailProfile"].(string); ok && v != "" {
-				model.EmailConfig.EmailProfile = types.StringValue(v)
-			}
+			emailProfile, _ := settings["emailProfile"].(string)
+			model.EmailConfig.EmailProfile = base.GatewayString(model.EmailConfig.EmailProfile, emailProfile)
 
-			if v, ok := settings["hostname"].(string); ok && v != "" {
-				model.EmailConfig.Hostname = types.StringValue(v)
-			}
+			hostname, _ := settings["hostname"].(string)
+			model.EmailConfig.Hostname = base.GatewayString(model.EmailConfig.Hostname, hostname)
 
 			if v, ok := settings["port"].(float64); ok && v != 0 {
 				model.EmailConfig.Port = types.Int64Value(int64(v))
@@ -242,14 +240,13 @@ func (r *AlarmNotificationProfileResource) MapClientToState(ctx context.Context,
 				model.EmailConfig.SSLEnabled = types.BoolValue(false)
 			}
 
-			if v, ok := settings["username"].(string); ok && v != "" {
-				model.EmailConfig.Username = types.StringValue(v)
-			}
+			username, _ := settings["username"].(string)
+			model.EmailConfig.Username = base.GatewayString(model.EmailConfig.Username, username)
 		} else if model.EmailConfig.SSLEnabled.IsUnknown() {
 			model.EmailConfig.SSLEnabled = types.BoolValue(false)
 		}
-	} else if config.Profile.Type != "" {
-		model.Type = types.StringValue(config.Profile.Type)
+	} else {
+		model.Type = base.GatewayString(model.Type, config.Profile.Type)
 	}
 	return nil
 }
