@@ -6,6 +6,7 @@ import (
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/base"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -88,6 +89,9 @@ func (r *AuditProfileResource) Schema(ctx context.Context, req resource.SchemaRe
 				Description: "How long (in days) should audit records be kept? If set to 0, pruning will be disabled. Default: 90.",
 				Optional:    true,
 				Computed:    true,
+				Validators: []validator.Int64{
+					int64validator.AtLeast(0),
+				},
 			},
 			"database": schema.StringAttribute{
 				Description: "The database connection to use to store audit events (for 'database' type).",
