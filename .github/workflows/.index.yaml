@@ -142,6 +142,9 @@ jobs:
     with:
       run_checks: false
       gpg_sign: true
+      # release-webpage deploys the run's site artifact, which forgejs names dist like forgego's
+      # build, so a shared name would put the provider zips on GitHub Pages in place of the site
+      artifact_name: provider
     secrets:
       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       GPG_PASSPHRASE: ${{ secrets.PASSPHRASE }}
