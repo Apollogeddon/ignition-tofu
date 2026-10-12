@@ -114,7 +114,7 @@ func TestClient_CreateResource_EmptyArray(t *testing.T) {
 		t.Fatal("Expected error for empty array response")
 	}
 	// json.Unmarshal will succeed into rawItems, but len(rawItems) == 0
-	if !strings.Contains(err.Error(), "failed to unmarshal response") {
+	if !strings.Contains(err.Error(), "failed to unmarshal response") || strings.Contains(err.Error(), "%!") {
 		t.Errorf("Expected unmarshal error, got '%v'", err)
 	}
 }
@@ -234,5 +234,21 @@ func TestClient_OtherStatusIsNotErrNotFound(t *testing.T) {
 	_, err := c.GetSMTPProfile(context.Background(), "x")
 	if err == nil || errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected a non-ErrNotFound error, got %v", err)
+	}
+}
+
+func TestClient_OversizedResponseRefused(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"name": "` + strings.Repeat("x", 100) + `"}`))
+	}))
+	defer server.Close()
+
+	defer func(n int) { maxResponseBytes = n }(maxResponseBytes)
+	maxResponseBytes = 64
+
+	c, _ := NewClient(server.URL, "token", false)
+	_, err := c.GetProject(context.Background(), "p")
+	if err == nil || !strings.Contains(err.Error(), "over 64 bytes") {
+		t.Errorf("Expected the size cap, got %v", err)
 	}
 }
