@@ -160,23 +160,10 @@ func (r *DatabaseConnectionResource) MapPlanToClient(ctx context.Context, model 
 func (r *DatabaseConnectionResource) MapClientToState(ctx context.Context, name string, config *client.DatabaseConfig, model *DatabaseConnectionResourceModel) error {
 	model.Name = types.StringValue(name)
 
-	if config.Driver != "" {
-		model.Type = types.StringValue(config.Driver)
-	}
-	if config.Translator != "" {
-		model.Translator = types.StringValue(config.Translator)
-	}
-	if config.ConnectURL != "" {
-		model.ConnectURL = types.StringValue(config.ConnectURL)
-	}
-	if config.Username != "" {
-		model.Username = types.StringValue(config.Username)
-	} else {
-		model.Username = types.StringNull()
-	}
-
-	// Ensure signature is preserved
-	// The signature is handled by the generic base if provided in the response
+	model.Type = base.GatewayString(model.Type, config.Driver)
+	model.Translator = base.GatewayString(model.Translator, config.Translator)
+	model.ConnectURL = base.GatewayString(model.ConnectURL, config.ConnectURL)
+	model.Username = base.GatewayString(model.Username, config.Username)
 	return nil
 }
 

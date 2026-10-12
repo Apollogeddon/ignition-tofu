@@ -239,7 +239,7 @@ func (r *StoreAndForwardResource) MapClientToState(ctx context.Context, name str
 	model.TimeThresholdMs = types.Int64Value(int64(config.TimeThresholdMs))
 	model.ForwardRateMs = types.Int64Value(int64(config.ForwardRateMs))
 	model.ForwardingPolicy = types.StringValue(config.ForwardingPolicy)
-	model.ForwardingSchedule = base.StringToNullableString(config.ForwardingSchedule)
+	model.ForwardingSchedule = base.GatewayString(model.ForwardingSchedule, config.ForwardingSchedule)
 	model.IsThirdParty = types.BoolValue(config.IsThirdParty)
 	model.DataThreshold = types.Int64Value(int64(config.DataThreshold))
 	model.BatchSize = types.Int64Value(int64(config.BatchSize))

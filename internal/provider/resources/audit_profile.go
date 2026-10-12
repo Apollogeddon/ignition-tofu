@@ -198,28 +198,21 @@ func (r *AuditProfileResource) MapClientToState(ctx context.Context, name string
 	model.Type = types.StringValue(config.Profile.Type)
 	model.RetentionDays = types.Int64Value(int64(config.Profile.RetentionDays))
 
-	if config.Settings.DatabaseName != "" {
-		model.Database = types.StringValue(config.Settings.DatabaseName)
-	}
+	model.Database = base.GatewayString(model.Database, config.Settings.DatabaseName)
 
 	model.PruneEnabled = types.BoolValue(config.Settings.PruneEnabled)
 	model.AutoCreate = types.BoolValue(config.Settings.AutoCreate)
 
-	if config.Settings.TableName != "" {
-		model.TableName = types.StringValue(config.Settings.TableName)
-	} else if model.TableName.IsNull() || model.TableName.IsUnknown() {
-		if model.Type.ValueString() == "database" {
-			model.TableName = types.StringValue("audit_events")
-		}
+	// A database profile without a table name writes to the default table, so
+	// that is what a name cleared on the gateway shows as.
+	if config.Settings.TableName == "" && model.Type.ValueString() == "database" {
+		model.TableName = types.StringValue("audit_events")
+	} else {
+		model.TableName = base.GatewayString(model.TableName, config.Settings.TableName)
 	}
 
-	if config.Settings.RemoteServer != "" {
-		model.RemoteServer = types.StringValue(config.Settings.RemoteServer)
-	}
-
-	if config.Settings.RemoteProfile != "" {
-		model.RemoteProfile = types.StringValue(config.Settings.RemoteProfile)
-	}
+	model.RemoteServer = base.GatewayString(model.RemoteServer, config.Settings.RemoteServer)
+	model.RemoteProfile = base.GatewayString(model.RemoteProfile, config.Settings.RemoteProfile)
 
 	model.EnableStoreAndForward = types.BoolValue(config.Settings.EnableStoreAndForward)
 

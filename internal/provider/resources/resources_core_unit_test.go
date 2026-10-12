@@ -25,7 +25,7 @@ func TestUnitCoreResources(t *testing.T) {
 			return &db, nil
 		},
 		GetDatabaseConnectionFunc: func(ctx context.Context, name string) (*client.ResourceResponse[client.DatabaseConfig], error) {
-			return &client.ResourceResponse[client.DatabaseConfig]{Name: name, Signature: "sig", Enabled: base.BoolPtr(true), Config: client.DatabaseConfig{Driver: "MySQL"}}, nil
+			return &client.ResourceResponse[client.DatabaseConfig]{Name: name, Signature: "sig", Enabled: base.BoolPtr(true), Config: client.DatabaseConfig{Driver: "MySQL", Translator: "mysql", ConnectURL: "jdbc:mysql://localhost"}}, nil
 		},
 		CreateTagProviderFunc: func(ctx context.Context, tp client.ResourceResponse[client.TagProviderConfig]) (*client.ResourceResponse[client.TagProviderConfig], error) {
 			tp.Signature = "sig"

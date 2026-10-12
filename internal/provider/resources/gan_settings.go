@@ -194,7 +194,7 @@ func (r *GanGeneralSettingsResource) MapClientToState(ctx context.Context, name 
 	model.RequireTwoWayAuth = types.BoolValue(config.RequireTwoWayAuth)
 	model.AllowIncoming = types.BoolValue(config.AllowIncoming)
 	model.SecurityPolicy = types.StringValue(config.SecurityPolicy)
-	model.Whitelist = base.StringToNullableString(config.Whitelist)
+	model.Whitelist = base.GatewayString(model.Whitelist, config.Whitelist)
 	model.AllowedProxyHops = types.Float64Value(config.AllowedProxyHops)
 	model.WebsocketSessionIdleTimeout = types.Float64Value(config.WebsocketSessionIdleTimeout)
 	model.TempFilesMaxAgeHours = types.Float64Value(config.TempFilesMaxAgeHours)

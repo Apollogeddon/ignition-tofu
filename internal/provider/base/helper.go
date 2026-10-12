@@ -121,11 +121,7 @@ func (r *GenericIgnitionResource[T, M]) Read(ctx context.Context, req resource.R
 		baseModel.Enabled = types.BoolValue(true)
 	}
 
-	if res.Description != "" {
-		baseModel.Description = types.StringValue(res.Description)
-	} else if baseModel.Description.IsNull() || baseModel.Description.IsUnknown() {
-		baseModel.Description = types.StringNull()
-	}
+	baseModel.Description = GatewayString(baseModel.Description, res.Description)
 
 	if err := r.Handler.MapClientToState(ctx, res.Name, &res.Config, data); err != nil {
 		resp.Diagnostics.AddError("Error mapping client to state", err.Error())
@@ -237,13 +233,17 @@ func (r *GenericIgnitionResource[T, M]) Delete(ctx context.Context, req resource
 	}
 }
 
-// StringToNullableString returns a types.StringNull if the input is empty,
-// otherwise returns types.StringValue.
-func StringToNullableString(s string) types.String {
-	if s == "" {
+// GatewayString maps a string the gateway returned onto the value in state. A
+// value cleared on the gateway nulls a non-empty one so plan shows it as drift,
+// while an empty string the user set stays empty rather than diffing forever.
+func GatewayString(current types.String, s string) types.String {
+	if s != "" {
+		return types.StringValue(s)
+	}
+	if current.ValueString() != "" || current.IsUnknown() {
 		return types.StringNull()
 	}
-	return types.StringValue(s)
+	return current
 }
 
 func BoolPtr(b bool) *bool {

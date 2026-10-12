@@ -400,25 +400,25 @@ func (r *IdentityProviderResource) MapClientToState(ctx context.Context, name st
 		if err := json.Unmarshal(configBytes, &oidcConfig); err == nil {
 			model.ClientId = types.StringValue(oidcConfig.ClientId)
 			model.ProviderId = types.StringValue(oidcConfig.ProviderId)
-			model.AuthorizationEndpoint = base.StringToNullableString(oidcConfig.AuthorizationEndpoint)
-			model.TokenEndpoint = base.StringToNullableString(oidcConfig.TokenEndpoint)
-			model.JwkEndpoint = base.StringToNullableString(oidcConfig.JsonWebKeysEndpoint)
+			model.AuthorizationEndpoint = base.GatewayString(model.AuthorizationEndpoint, oidcConfig.AuthorizationEndpoint)
+			model.TokenEndpoint = base.GatewayString(model.TokenEndpoint, oidcConfig.TokenEndpoint)
+			model.JwkEndpoint = base.GatewayString(model.JwkEndpoint, oidcConfig.JsonWebKeysEndpoint)
 			model.JwkEndpointEnabled = types.BoolValue(oidcConfig.JsonWebKeysEndpointEnabled)
-			model.UserInfoEndpoint = base.StringToNullableString(oidcConfig.UserInfoEndpoint)
-			model.LogoutEndpoint = base.StringToNullableString(oidcConfig.EndSessionEndpoint)
+			model.UserInfoEndpoint = base.GatewayString(model.UserInfoEndpoint, oidcConfig.UserInfoEndpoint)
+			model.LogoutEndpoint = base.GatewayString(model.LogoutEndpoint, oidcConfig.EndSessionEndpoint)
 		}
 	case "saml":
 		var samlConfig client.IdentityProviderSamlConfig
 		if err := json.Unmarshal(configBytes, &samlConfig); err == nil {
 			model.IdpEntityId = types.StringValue(samlConfig.IdpEntityId)
-			model.SpEntityId = base.StringToNullableString(samlConfig.SpEntityId)
+			model.SpEntityId = base.GatewayString(model.SpEntityId, samlConfig.SpEntityId)
 			model.SpEntityIdEnabled = types.BoolValue(samlConfig.SpEntityIdEnabled)
 			model.AcsBinding = types.StringValue(samlConfig.AcsBinding)
 			model.NameIdFormat = types.StringValue(samlConfig.NameIdFormat)
 			model.ForceAuthn = types.BoolValue(samlConfig.ForceAuthnEnabled)
 			model.ResponseSignaturesRequired = types.BoolValue(samlConfig.ResponseSignaturesRequired)
 			model.AssertionSignaturesRequired = types.BoolValue(samlConfig.AssertionSignaturesRequired)
-			model.IdpMetadataUrl = base.StringToNullableString(samlConfig.IdpMetadataUrl)
+			model.IdpMetadataUrl = base.GatewayString(model.IdpMetadataUrl, samlConfig.IdpMetadataUrl)
 			model.IdpMetadataUrlEnabled = types.BoolValue(samlConfig.IdpMetadataUrlEnabled)
 
 			model.SsoServiceConfig = &SsoServiceConfig{

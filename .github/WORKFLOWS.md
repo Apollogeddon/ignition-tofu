@@ -4,7 +4,7 @@ This repository uses GitHub Actions to test the provider, check its quality, bui
 
 ## Index workflow
 
-The [`.index.yaml`](./workflows/.index.yaml) workflow runs on every pull request, and on pushes to `main` that change the provider's code, its tooling, `docker-compose.yml` or the workflows that test and release it. It runs these jobs:
+The [`.index.yaml`](./workflows/.index.yaml) workflow runs on every pull request, and on pushes to `main` that change the provider's code, its tooling, the test gateway (`docker-compose.yml`, `bootstrap/` and its seed backup in `assets/`) or the workflows that test and release it. It runs these jobs:
 
 1. **Changes**: on a pull request, works out whether the provider, its tooling or those workflows changed, and whether any shell script changed. A push or a manual run always runs the whole pipeline.
 2. **shellcheck**: lints every shell script when a script changed.
@@ -53,7 +53,7 @@ forgego's [`testing.yml`](https://github.com/apollogeddon/forgego/blob/main/.git
 
 The [`ignition.yaml`](./workflows/ignition.yaml) workflow tests the provider against a real gateway:
 
-- **Gateway**: starts an Ignition 8.3 gateway from `docker-compose.yml`, which restores the seed backup in `assets/ignition.gwbk`.
+- **Gateway**: starts an Ignition 8.3.10 gateway (the image `bootstrap/Dockerfile` pins) from `docker-compose.yml`, which restores the seed backup in `assets/ignition.gwbk`.
 - **Readiness**: waits until the gateway responds.
 - **Tests**: runs `task test:acc`, which creates, reads, updates and deletes each resource through the live API with OpenTofu.
 

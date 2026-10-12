@@ -13,6 +13,8 @@ on:
       - '.golangci*.yml'
       - Taskfile.yml
       - docker-compose.yml
+      - 'bootstrap/**'
+      - 'assets/**'
       - '.github/workflows/.index.yaml'
       - '.github/workflows/ignition.yaml'
   pull_request:
@@ -48,7 +50,7 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
-          CODE_INPUTS: '^(go\.(mod|sum)$|main\.go$|internal/|\.forgego/|\.golangci.*\.yml$|Taskfile\.yml$|docker-compose\.yml$|\.github/workflows/(\.index|ignition)\.yaml$)'
+          CODE_INPUTS: '^(go\.(mod|sum)$|main\.go$|internal/|\.forgego/|\.golangci.*\.yml$|Taskfile\.yml$|docker-compose\.yml$|bootstrap/|assets/|\.github/workflows/(\.index|ignition)\.yaml$)'
           SCRIPT_INPUTS: '(\.sh$|^\.github/workflows/\.index\.yaml$)'
         run: |
           # a push or a manual run releases, so it runs the whole pipeline

@@ -4,7 +4,7 @@ terraform {
       source = "kreuzwerker/docker"
     }
     ignition = {
-      source = "registry.terraform.io/apollogeddon/ignition"
+      source = "apollogeddon/ignition"
     }
   }
 }

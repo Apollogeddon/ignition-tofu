@@ -192,9 +192,7 @@ func (r *AlarmJournalResource) MapPlanToClient(ctx context.Context, model *Alarm
 func (r *AlarmJournalResource) MapClientToState(ctx context.Context, name string, config *client.AlarmJournalConfig, model *AlarmJournalResourceModel) error {
 	model.Name = types.StringValue(name)
 
-	if config.Profile.Type != "" {
-		model.Type = types.StringValue(config.Profile.Type)
-	}
+	model.Type = base.GatewayString(model.Type, config.Profile.Type)
 
 	model.Datasource = types.StringNull()
 	model.TableName = types.StringNull()

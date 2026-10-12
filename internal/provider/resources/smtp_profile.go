@@ -176,11 +176,7 @@ func (r *SMTPProfileResource) MapClientToState(ctx context.Context, name string,
 		model.Port = types.Int64Value(int64(config.Settings.Settings.Port))
 		model.UseSslPort = types.BoolValue(config.Settings.Settings.UseSslPort)
 		model.StartTlsEnabled = types.BoolValue(config.Settings.Settings.StartTlsEnabled)
-		if config.Settings.Settings.Username != "" {
-			model.Username = types.StringValue(config.Settings.Settings.Username)
-		} else {
-			model.Username = types.StringNull()
-		}
+		model.Username = base.GatewayString(model.Username, config.Settings.Settings.Username)
 	}
 	return nil
 }
