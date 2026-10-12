@@ -70,8 +70,10 @@ The zips are named in the packed layout that a [filesystem mirror](https://opent
 
 Download the release for your platform and verify its checksum:
 
+<!-- x-release-please-start-version -->
+
 ```bash
-VERSION=1.1.0
+VERSION=1.2.2 # the release to install
 PLATFORM=linux_amd64 # for example darwin_arm64 or windows_amd64
 MIRROR="$HOME/.terraform.d/plugins/registry.opentofu.org/apollogeddon/ignition"
 
@@ -80,6 +82,8 @@ curl -fsSLO --output-dir "$MIRROR" "https://github.com/apollogeddon/ignition-tof
 curl -fsSLO --output-dir "$MIRROR" "https://github.com/apollogeddon/ignition-tofu/releases/download/v${VERSION}/terraform-provider-ignition_${VERSION}_SHA256SUMS"
 (cd "$MIRROR" && sha256sum --check --ignore-missing "terraform-provider-ignition_${VERSION}_SHA256SUMS")
 ```
+
+<!-- x-release-please-end -->
 
 On macOS, use `shasum -a 256 --check --ignore-missing` in place of `sha256sum --check --ignore-missing`.
 

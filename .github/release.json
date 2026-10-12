@@ -4,7 +4,8 @@
       "release-type": "go",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        "main.go"
+        "main.go",
+        "webpage/src/content/docs/guides/installation.md"
       ],
       "draft": true,
       "force-tag-creation": true,
