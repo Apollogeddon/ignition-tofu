@@ -121,9 +121,11 @@ func (r *GenericIgnitionResource[T, M]) Read(ctx context.Context, req resource.R
 		baseModel.Enabled = types.BoolValue(true)
 	}
 
+	// A description cleared on the gateway must show as drift, so only an
+	// explicitly empty description in state survives an empty response.
 	if res.Description != "" {
 		baseModel.Description = types.StringValue(res.Description)
-	} else if baseModel.Description.IsNull() || baseModel.Description.IsUnknown() {
+	} else if baseModel.Description.ValueString() != "" || baseModel.Description.IsUnknown() {
 		baseModel.Description = types.StringNull()
 	}
 
