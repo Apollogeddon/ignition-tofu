@@ -1,10 +1,12 @@
 #!/bin/bash
 # Installs the pinned OpenTofu release into .bin/tofu, after checking it against the
-# release's SHA256SUMS, and prints its path. The tests, the acceptance tests and the
+# release's SHA256SUMS, itself checked against the hash pinned here, and prints its path. The tests, the acceptance tests and the
 # docs build all run OpenTofu from here.
 set -euo pipefail
 
 TOFU_VERSION="1.13.1"
+# sha256 of that release's SHA256SUMS: a version bump updates both
+TOFU_SUMS_SHA256="f4a03dd8613320c665848cb6e1962ee112d777c9c6a8a725586dcc341b1c7252"
 
 root=$(git rev-parse --show-toplevel)
 bin="$root/.bin"
@@ -33,6 +35,7 @@ trap 'rm -rf "$tmp"' EXIT
 
 curl -sSfL -o "$tmp/$archive" "$url/$archive"
 curl -sSfL -o "$tmp/SHA256SUMS" "$url/tofu_${TOFU_VERSION}_SHA256SUMS"
+echo "$TOFU_SUMS_SHA256  $tmp/SHA256SUMS" | sha256sum -c - >&2
 (cd "$tmp" && grep " $archive\$" SHA256SUMS | sha256sum -c - >&2)
 
 mkdir -p "$bin"
