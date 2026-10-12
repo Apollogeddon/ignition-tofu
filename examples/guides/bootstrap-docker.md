@@ -13,7 +13,7 @@ The `ignition` provider configures a gateway that is already running. It cannot 
 
 This is the pattern this repository's `docker-compose.yml` uses for acceptance testing: copy a seed `.gwbk` backup into a derived image, restore it against the running container, then restart the gateway to apply the restore.
 
-The `ignition` provider is not yet published to a public registry. Install it from a GitHub release first, as described in the [installation guide](https://apollogeddon.github.io/ignition-tofu/docs/guides/installation/). The example below uses the source address `registry.terraform.io/apollogeddon/ignition`, so with OpenTofu, place the release in a mirror directory under `registry.terraform.io` rather than `registry.opentofu.org`.
+The `ignition` provider is not yet published to a public registry. Install it from a GitHub release first, as described in the [installation guide](https://apollogeddon.github.io/ignition-tofu/docs/guides/installation/). The example below uses the source address `apollogeddon/ignition`, as the installation guide does, so the network or filesystem mirror it describes serves it to OpenTofu and Terraform alike.
 
 ## The pattern
 
@@ -21,7 +21,7 @@ The `ignition` provider is not yet published to a public registry. Install it fr
 terraform {
   required_providers {
     docker   = { source = "kreuzwerker/docker" }
-    ignition = { source = "registry.terraform.io/apollogeddon/ignition" }
+    ignition = { source = "apollogeddon/ignition" }
   }
 }
 
