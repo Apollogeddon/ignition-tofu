@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.3](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.2...v1.2.3) (2026-10-12)
+
+
+### Bug Fixes
+
+* Drift for fields cleared on the gateway, Ignition 8.3.10 in CI, and docs fixes ([9dc44b9](https://github.com/Apollogeddon/ignition-tofu/commit/9dc44b94a5a5996c82ccb1d8ef0dc5080462efae))
+* **resources:** Map every string the gateway returns empty by the description's drift rule ([da96fef](https://github.com/Apollogeddon/ignition-tofu/commit/da96fef4d8d7fef3505f26c7d64471c294ecb011))
+* **resources:** Show a description cleared on the gateway as drift ([4a16bcc](https://github.com/Apollogeddon/ignition-tofu/commit/4a16bccef147e773751ed40db9694afcaaa2b1f7))
+
 ## [1.2.2](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.1...v1.2.2) (2026-10-11)
 
 
