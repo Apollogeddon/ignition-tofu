@@ -3,15 +3,18 @@ package provider
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/datasources"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/resources"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -32,7 +35,11 @@ type IgnitionProviderModel struct {
 	Host             types.String `tfsdk:"host"`
 	Token            types.String `tfsdk:"token"`
 	AllowInsecureTLS types.Bool   `tfsdk:"allow_insecure_tls"`
+	RequestTimeout   types.Int64  `tfsdk:"request_timeout"`
 }
+
+// maxRequestTimeout is an hour: past that a plan waiting on a gateway is a hang, not a retry.
+const maxRequestTimeout = 3600
 
 func (p *IgnitionProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "ignition"
@@ -56,6 +63,15 @@ func (p *IgnitionProvider) Schema(ctx context.Context, req provider.SchemaReques
 				Description: "Whether to allow insecure TLS connections (e.g., self-signed certs).",
 				Optional:    true,
 			},
+			"request_timeout": schema.Int64Attribute{
+				Description: "The longest one request to the gateway may take, in seconds, including its retries and the waits between them: " +
+					"a gateway that is down or answering with errors fails the plan after this rather than after every retry. " +
+					"From 1 to 3600; defaults to 60. Each attempt also has a timeout of its own of 10 seconds.",
+				Optional: true,
+				Validators: []validator.Int64{
+					int64validator.Between(1, maxRequestTimeout),
+				},
+			},
 		},
 	}
 }
@@ -69,23 +85,19 @@ func (p *IgnitionProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	if data.Host.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("host"),
-			"Unknown Host",
-			"The provider host cannot be unknown. Please verify your Terraform configuration.",
+	// A value another resource sets is unknown until apply, which configures the provider
+	// again with it. Until then: defer where the client can, else stay unconfigured, so a
+	// plan creates new resources and keeps the state it has for existing ones.
+	if data.Host.IsUnknown() || data.Token.IsUnknown() || data.AllowInsecureTLS.IsUnknown() || data.RequestTimeout.IsUnknown() {
+		if req.ClientCapabilities.DeferralAllowed {
+			resp.Deferred = &provider.Deferred{Reason: provider.DeferredReasonProviderConfigUnknown}
+			return
+		}
+		resp.Diagnostics.AddWarning(
+			"Provider configuration not known until apply",
+			"A provider attribute comes from a value that is only known after apply, so this plan can't reach the gateway: "+
+				"resources already in state are not refreshed, and data sources can't be read until the value is known.",
 		)
-	}
-
-	if data.Token.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("token"),
-			"Unknown Token",
-			"The provider token cannot be unknown. Please verify your Terraform configuration.",
-		)
-	}
-
-	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -127,7 +139,12 @@ func (p *IgnitionProvider) Configure(ctx context.Context, req provider.Configure
 	if p.client != nil {
 		apiClient = p.client
 	} else {
-		apiClient, err = client.NewClient(host, token, allowInsecure)
+		var c *client.Client
+		c, err = client.NewClient(host, token, allowInsecure)
+		if err == nil && !data.RequestTimeout.IsNull() {
+			c.RequestTimeout = time.Duration(data.RequestTimeout.ValueInt64()) * time.Second
+		}
+		apiClient = c
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Unable to Create Ignition API Client",

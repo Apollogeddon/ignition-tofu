@@ -411,3 +411,53 @@ func TestClient_RetriedDeleteOfAnAppliedDeleteIsNotFound(t *testing.T) {
 		t.Errorf("Expected ErrNotFound, got %v", err)
 	}
 }
+
+// A gateway that keeps failing is given up on after RequestTimeout, not after every retry
+// and its backoff (minutes with the defaults), and the error says what it last answered.
+func TestClient_RequestTimeoutBoundsRetries(t *testing.T) {
+	var reqCount int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&reqCount, 1)
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer server.Close()
+
+	c, _ := NewClient(server.URL, "test-token", false)
+	if c.RequestTimeout != DefaultRequestTimeout {
+		t.Fatalf("Expected the default request timeout, got %s", c.RequestTimeout)
+	}
+	c.RequestTimeout = 300 * time.Millisecond
+	c.HTTPClient.RetryWaitMin = 100 * time.Millisecond
+	c.HTTPClient.RetryWaitMax = 100 * time.Millisecond
+
+	start := time.Now()
+	var dest ResourceResponse[map[string]any]
+	err := c.GetResource(context.Background(), "test-type", "test-name", &dest)
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("Expected to give up after about 300ms, took %s", elapsed)
+	}
+	if err == nil || !strings.Contains(err.Error(), "request_timeout") || !strings.Contains(err.Error(), "status 502") {
+		t.Errorf("Expected a request_timeout error naming the last status, got %v", err)
+	}
+	if n := atomic.LoadInt32(&reqCount); n < 2 || n > 5 {
+		t.Errorf("Expected a few attempts within the timeout, got %d", n)
+	}
+}
+
+// A caller's own cancellation is reported as such, not as the request timeout.
+func TestClient_RequestTimeoutLeavesCallerCancellation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer server.Close()
+
+	c, _ := NewClient(server.URL, "test-token", false)
+	c.HTTPClient.RetryWaitMin = 50 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	var dest ResourceResponse[map[string]any]
+	err := c.GetResource(ctx, "test-type", "test-name", &dest)
+	if !errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "request_timeout") {
+		t.Errorf("Expected the caller's deadline, got %v", err)
+	}
+}

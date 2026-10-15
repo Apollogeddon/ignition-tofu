@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
+	"github.com/apollogeddon/ignition-tofu/internal/provider/base"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/resources"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -145,6 +146,10 @@ func (d *StoreAndForwardDataSource) Configure(ctx context.Context, req datasourc
 }
 
 func (d *StoreAndForwardDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	if d.client == nil {
+		base.AddUnconfiguredError(&resp.Diagnostics)
+		return
+	}
 	var data StoreAndForwardDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {

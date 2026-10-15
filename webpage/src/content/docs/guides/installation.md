@@ -141,6 +141,7 @@ provider "ignition" {
 | `host` | `IGNITION_HOST` | The base URL of the gateway, for example `http://10.10.1.5:8088`. |
 | `token` | `IGNITION_TOKEN` | An API key created on the gateway. Marked sensitive. |
 | `allow_insecure_tls` | | Skips TLS certificate verification. Defaults to `false`. |
+| `request_timeout` | | The longest one request may take, in seconds, including its retries: a gateway that is down or answering with errors fails the run after this. From 1 to 3600; defaults to `60`. |
 
 `allow_insecure_tls` is useful for local Docker gateways or gateways with the default self-signed certificate. Avoid it in production.
 
@@ -149,6 +150,8 @@ Keep the API key out of your `.tf` files. When `host` or `token` is not set, the
 ```hcl
 provider "ignition" {}
 ```
+
+The attributes may also come from values only known after apply, such as another resource's output. OpenTofu then plans without reaching the gateway: new resources are planned, resources already in state keep their last values without a refresh, and data sources from this provider fail until the values are known. Apply configures the provider with the real values.
 
 ```bash
 export IGNITION_HOST="http://localhost:8088"

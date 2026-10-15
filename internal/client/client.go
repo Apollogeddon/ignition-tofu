@@ -97,10 +97,16 @@ func (e notFoundError) Error() string        { return e.err.Error() }
 func (e notFoundError) Unwrap() error        { return e.err }
 func (e notFoundError) Is(target error) bool { return target == ErrNotFound }
 
+// DefaultRequestTimeout bounds one request with its retries, so a gateway that is down or
+// failing can't hold a plan for minutes per resource.
+const DefaultRequestTimeout = 60 * time.Second
+
 type Client struct {
 	HostURL    string
 	HTTPClient *retryablehttp.Client
 	Token      string
+	// RequestTimeout bounds each request with its retries and the waits between them; 0 is no bound.
+	RequestTimeout time.Duration
 }
 
 func NewClient(host, token string, allowInsecureTLS bool) (*Client, error) {
@@ -119,7 +125,7 @@ func NewClient(host, token string, allowInsecureTLS bool) (*Client, error) {
 		rc.HTTPClient.Transport = t
 	}
 
-	return &Client{HTTPClient: rc, HostURL: strings.TrimRight(host, "/"), Token: token}, nil
+	return &Client{HTTPClient: rc, HostURL: strings.TrimRight(host, "/"), Token: token, RequestTimeout: DefaultRequestTimeout}, nil
 }
 
 // maxResponseBytes caps what is read of one response; the gateway's are a
@@ -141,10 +147,36 @@ func sendOnce(ctx context.Context, method string) context.Context {
 	return ctx
 }
 
+// lastAttemptKey holds a *lastAttempt, so a request that runs out of RequestTimeout can say
+// what its last attempt got rather than only "context deadline exceeded".
+type lastAttemptKey struct{}
+
+type lastAttempt struct {
+	status int
+	err    error
+}
+
+func (a *lastAttempt) String() string {
+	if a.err != nil {
+		return a.err.Error()
+	}
+	if a.status != 0 {
+		return fmt.Sprintf("status %d", a.status)
+	}
+	return "no answer"
+}
+
 // retryPolicy is retryablehttp's default, except that a request marked with
 // noResendKey is retried only when the gateway can't have acted on it: the
 // connection was refused, or it answered 429 or 503.
 func retryPolicy(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	// an attempt the deadline cut short says less than the one before it
+	if last, ok := ctx.Value(lastAttemptKey{}).(*lastAttempt); ok && ctx.Err() == nil {
+		*last = lastAttempt{err: err}
+		if resp != nil {
+			last.status = resp.StatusCode
+		}
+	}
 	if ctx.Err() == nil && ctx.Value(noResendKey{}) != nil {
 		if err != nil {
 			var opErr *net.OpError
@@ -158,6 +190,14 @@ func retryPolicy(ctx context.Context, resp *http.Response, err error) (bool, err
 func (c *Client) doRequest(ctx context.Context, method, path string, body []byte, contentType ...string) ([]byte, error) {
 	if method == http.MethodPost {
 		ctx = context.WithValue(ctx, noResendKey{}, true)
+	}
+	parent := ctx
+	last := &lastAttempt{}
+	ctx = context.WithValue(ctx, lastAttemptKey{}, last)
+	if c.RequestTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, c.RequestTimeout)
+		defer cancel()
 	}
 	req, err := retryablehttp.NewRequestWithContext(ctx, method, c.HostURL+path, bytes.NewBuffer(body))
 	if err != nil {
@@ -175,6 +215,10 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 
 	res, err := c.HTTPClient.Do(req)
 	if err != nil {
+		if parent.Err() == nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return nil, fmt.Errorf("%s %s: no success within the provider's request_timeout of %s; last attempt: %s",
+				method, path, c.RequestTimeout, last)
+		}
 		return nil, err
 	}
 	defer func() { _ = res.Body.Close() }()
@@ -711,15 +755,15 @@ func (c *Client) waitForProject(ctx context.Context, want Project) (*Project, er
 	}
 }
 
-// projectApplied reports whether got holds every field sent in want: the
-// request omits empty strings and unset booleans, so only those that were set count.
+// projectApplied reports whether got holds every field sent in want. Strings are always
+// sent, an empty one clearing the field; an unset boolean leaves the gateway's value, and a
+// boolean the gateway leaves out reads as false, as the resource maps it.
 func projectApplied(got, want Project) bool {
-	same := func(g, w string) bool { return w == "" || g == w }
-	sameBool := func(g, w *bool) bool { return w == nil || (g != nil && *g == *w) }
+	sameBool := func(g, w *bool) bool { return w == nil || (g != nil && *g == *w) || (g == nil && !*w) }
 	return got.Name == want.Name &&
-		same(got.Description, want.Description) && same(got.Title, want.Title) &&
-		same(got.Parent, want.Parent) && same(got.DefaultDB, want.DefaultDB) &&
-		same(got.TagProvider, want.TagProvider) && same(got.UserSource, want.UserSource) &&
-		same(got.IdentityProvider, want.IdentityProvider) &&
+		got.Description == want.Description && got.Title == want.Title &&
+		got.Parent == want.Parent && got.DefaultDB == want.DefaultDB &&
+		got.TagProvider == want.TagProvider && got.UserSource == want.UserSource &&
+		got.IdentityProvider == want.IdentityProvider &&
 		sameBool(got.Enabled, want.Enabled) && sameBool(got.Inheritable, want.Inheritable)
 }
