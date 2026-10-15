@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -84,10 +85,14 @@ func (r *UserSourceResource) Schema(ctx context.Context, req resource.SchemaRequ
 				Computed:    true,
 			},
 			"schedule_restricted": schema.BoolAttribute{
-				Description: "Users are only able to log in when their assigned schedule is active.",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(false),
+				Description: "Users are only able to log in when their assigned schedule is active. " +
+					"Left out, the provider doesn't set it and keeps whatever the gateway has (false for a new user source), " +
+					"and shows the gateway's value; removing it from the configuration leaves the last value in place rather than turning it off.",
+				Optional: true,
+				Computed: true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"signature": schema.StringAttribute{
 				Description: "The signature of the resource, used for updates and deletes.",
@@ -134,9 +139,7 @@ func (r *UserSourceResource) MapPlanToClient(ctx context.Context, model *UserSou
 	if !model.FailoverMode.IsNull() {
 		profile.FailoverMode = model.FailoverMode.ValueString()
 	}
-	if !model.ScheduleRestricted.IsNull() {
-		profile.ScheduleRestricted = model.ScheduleRestricted.ValueBool()
-	}
+	profile.ScheduleRestricted = base.KnownBool(model.ScheduleRestricted)
 
 	return client.UserSourceConfig{
 		Profile: profile,
@@ -149,7 +152,7 @@ func (r *UserSourceResource) MapClientToState(ctx context.Context, name string, 
 	model.FailoverProfile = base.GatewayString(model.FailoverProfile, config.Profile.FailoverProfile)
 	model.FailoverMode = base.GatewayString(model.FailoverMode, config.Profile.FailoverMode)
 
-	model.ScheduleRestricted = types.BoolValue(config.Profile.ScheduleRestricted)
+	model.ScheduleRestricted = types.BoolValue(base.Deref(config.Profile.ScheduleRestricted))
 	return nil
 }
 
