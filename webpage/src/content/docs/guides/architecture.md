@@ -30,8 +30,8 @@ The provider layer (`internal/provider`) defines the schema of each resource and
 The client (`internal/client`) handles HTTP communication with the gateway and authenticates with the `X-Ignition-API-Token` header.
 
 - **Retries**: the client uses `hashicorp/go-retryablehttp` with up to 10 retries and a 10-second timeout per request. Configuration changes often restart a gateway module, and the retries let a request succeed once the module is back. A create (a POST) or a resource update (a PUT, which carries the resource's signature) is sent again only when the gateway can't have acted on it: the connection was refused, or it answered 429 or 503. After a timeout or another error it fails rather than risk creating the object twice or failing on a signature the first update replaced. A delete is retried: if the first one was applied, the retry finds nothing, which counts as deleted.
-- **Types**: the client defines Go structs for the gateway's configuration objects, such as `Project`, `DatabaseConfig` and `TagProviderConfig`.
-- **Waiting for projects**: after creating a project, the client polls the gateway every 200 ms, for up to 10 seconds, until the project can be read.
+- **Types**: the client defines Go structs for the gateway's configuration objects, such as `Project`, `DatabaseConfig` and `TagProviderConfig`. An optional boolean or number whose `false` or `0` means something (a project's `enabled`, an audit profile's `retention_days`) is a pointer: unset leaves the gateway's value, and `false` or `0` is sent.
+- **Waiting for projects**: after creating or updating a project, the client polls the gateway every 200 ms until it shows every field that was sent. After 10 seconds it returns what the gateway shows.
 
 ## Secrets
 

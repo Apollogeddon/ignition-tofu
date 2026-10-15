@@ -712,13 +712,14 @@ func (c *Client) waitForProject(ctx context.Context, want Project) (*Project, er
 }
 
 // projectApplied reports whether got holds every field sent in want: the
-// request omits empty strings and false, so only those that were set count.
+// request omits empty strings and unset booleans, so only those that were set count.
 func projectApplied(got, want Project) bool {
 	same := func(g, w string) bool { return w == "" || g == w }
+	sameBool := func(g, w *bool) bool { return w == nil || (g != nil && *g == *w) }
 	return got.Name == want.Name &&
 		same(got.Description, want.Description) && same(got.Title, want.Title) &&
 		same(got.Parent, want.Parent) && same(got.DefaultDB, want.DefaultDB) &&
 		same(got.TagProvider, want.TagProvider) && same(got.UserSource, want.UserSource) &&
 		same(got.IdentityProvider, want.IdentityProvider) &&
-		(!want.Enabled || got.Enabled) && (!want.Inheritable || got.Inheritable)
+		sameBool(got.Enabled, want.Enabled) && sameBool(got.Inheritable, want.Inheritable)
 }

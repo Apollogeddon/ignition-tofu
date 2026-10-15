@@ -7,6 +7,7 @@ import (
 	"github.com/apollogeddon/ignition-tofu/internal/client"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/base"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
@@ -15,7 +16,7 @@ func TestUnitProjectResource(t *testing.T) {
 	mockProject := &client.Project{
 		Name:        "test-project",
 		Description: "Initial Description",
-		Enabled:     true,
+		Enabled:     base.BoolPtr(true),
 	}
 
 	mockClient := &client.MockClient{
@@ -82,4 +83,25 @@ func TestUnitProjectResource(t *testing.T) {
 			},
 		},
 	})
+}
+
+// enabled and inheritable reach the client as set, false included, and stay unset (left to
+// the gateway) while the plan doesn't know them.
+func TestProjectMapPlanToClient_Booleans(t *testing.T) {
+	r := &ProjectResource{}
+	m := ProjectResourceModel{Inheritable: types.BoolValue(false)}
+	m.Name, m.Enabled = types.StringValue("p"), types.BoolValue(false)
+	p, err := r.MapPlanToClient(context.Background(), &m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Enabled == nil || *p.Enabled || p.Inheritable == nil || *p.Inheritable {
+		t.Errorf("Expected enabled and inheritable false, got %v %v", p.Enabled, p.Inheritable)
+	}
+
+	m = ProjectResourceModel{Inheritable: types.BoolNull()}
+	m.Name, m.Enabled = types.StringValue("p"), types.BoolUnknown()
+	if p, _ = r.MapPlanToClient(context.Background(), &m); p.Enabled != nil || p.Inheritable != nil {
+		t.Errorf("Expected unknown and null left unset, got %v %v", p.Enabled, p.Inheritable)
+	}
 }

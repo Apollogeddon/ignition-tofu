@@ -18,7 +18,7 @@ func TestUnitCoreResources(t *testing.T) {
 			return &p, nil
 		},
 		GetProjectFunc: func(ctx context.Context, name string) (*client.Project, error) {
-			return &client.Project{Name: name, Enabled: true}, nil
+			return &client.Project{Name: name, Enabled: base.BoolPtr(true)}, nil
 		},
 		CreateDatabaseConnectionFunc: func(ctx context.Context, db client.ResourceResponse[client.DatabaseConfig]) (*client.ResourceResponse[client.DatabaseConfig], error) {
 			db.Signature = "sig"

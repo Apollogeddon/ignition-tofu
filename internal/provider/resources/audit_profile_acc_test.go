@@ -37,11 +37,14 @@ func TestAccAuditProfileResource(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 			},
-			// Update and Read testing
+			// an update to 0 and false (no pruning, no table creation) must reach the gateway
 			{
-				Config: testAccAuditProfileResourceConfig(rName, "database", dbName),
+				Config: testAccAuditProfileResourceConfig(rName, "database", dbName, "retention_days = 0\n  prune_enabled = false\n  auto_create = false"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ignition_audit_profile.test", "name", rName),
+					resource.TestCheckResourceAttr("ignition_audit_profile.test", "retention_days", "0"),
+					resource.TestCheckResourceAttr("ignition_audit_profile.test", "prune_enabled", "false"),
+					resource.TestCheckResourceAttr("ignition_audit_profile.test", "auto_create", "false"),
 				),
 			},
 			{
@@ -53,7 +56,11 @@ func TestAccAuditProfileResource(t *testing.T) {
 	})
 }
 
-func testAccAuditProfileResourceConfig(name, profileType, dbName string) string {
+func testAccAuditProfileResourceConfig(name, profileType, dbName string, settings ...string) string {
+	extra := "retention_days = 90"
+	if len(settings) > 0 {
+		extra = settings[0]
+	}
 	return fmt.Sprintf(`
 provider "ignition" {}
 
@@ -68,7 +75,7 @@ resource "ignition_audit_profile" "test" {
   name        = %[1]q
   type        = %[2]q
   database    = ignition_database_connection.test.name
-  retention_days = 90
+  %[4]s
 }
-`, name, profileType, dbName)
+`, name, profileType, dbName, extra)
 }

@@ -31,6 +31,20 @@ func TestAccProjectResource(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 			},
+			// an update that turns booleans off and sets a description must reach the gateway
+			{
+				Config: testAccProjectResourceConfigUpdated(rName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("ignition_project.test", "enabled", "false"),
+					resource.TestCheckResourceAttr("ignition_project.test", "inheritable", "false"),
+					resource.TestCheckResourceAttr("ignition_project.test", "description", "updated by the acceptance test"),
+				),
+			},
+			{
+				ResourceName:      "ignition_project.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }
@@ -41,6 +55,19 @@ provider "ignition" {}
 
 resource "ignition_project" "test" {
   name        = %[1]q
+}
+`, name)
+}
+
+func testAccProjectResourceConfigUpdated(name string) string {
+	return fmt.Sprintf(`
+provider "ignition" {}
+
+resource "ignition_project" "test" {
+  name        = %[1]q
+  description = "updated by the acceptance test"
+  enabled     = false
+  inheritable = false
 }
 `, name)
 }

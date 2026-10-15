@@ -163,20 +163,14 @@ func (r *AuditProfileResource) MapPlanToClient(ctx context.Context, model *Audit
 	profile := client.AuditProfileProfile{
 		Type: model.Type.ValueString(),
 	}
-	if !model.RetentionDays.IsNull() {
-		profile.RetentionDays = int(model.RetentionDays.ValueInt64())
-	}
+	profile.RetentionDays = base.KnownInt(model.RetentionDays)
 
 	settings := client.AuditProfileSettings{}
 	if !model.Database.IsNull() {
 		settings.DatabaseName = model.Database.ValueString()
 	}
-	if !model.PruneEnabled.IsNull() {
-		settings.PruneEnabled = model.PruneEnabled.ValueBool()
-	}
-	if !model.AutoCreate.IsNull() {
-		settings.AutoCreate = model.AutoCreate.ValueBool()
-	}
+	settings.PruneEnabled = base.KnownBool(model.PruneEnabled)
+	settings.AutoCreate = base.KnownBool(model.AutoCreate)
 	if !model.TableName.IsNull() {
 		settings.TableName = model.TableName.ValueString()
 	}
@@ -186,9 +180,7 @@ func (r *AuditProfileResource) MapPlanToClient(ctx context.Context, model *Audit
 	if !model.RemoteProfile.IsNull() {
 		settings.RemoteProfile = model.RemoteProfile.ValueString()
 	}
-	if !model.EnableStoreAndForward.IsNull() {
-		settings.EnableStoreAndForward = model.EnableStoreAndForward.ValueBool()
-	}
+	settings.EnableStoreAndForward = base.KnownBool(model.EnableStoreAndForward)
 
 	return client.AuditProfileConfig{
 		Profile:  profile,
@@ -200,12 +192,12 @@ func (r *AuditProfileResource) MapClientToState(ctx context.Context, name string
 	model.Name = types.StringValue(name)
 
 	model.Type = types.StringValue(config.Profile.Type)
-	model.RetentionDays = types.Int64Value(int64(config.Profile.RetentionDays))
+	model.RetentionDays = types.Int64Value(int64(base.Deref(config.Profile.RetentionDays)))
 
 	model.Database = base.GatewayString(model.Database, config.Settings.DatabaseName)
 
-	model.PruneEnabled = types.BoolValue(config.Settings.PruneEnabled)
-	model.AutoCreate = types.BoolValue(config.Settings.AutoCreate)
+	model.PruneEnabled = types.BoolValue(base.Deref(config.Settings.PruneEnabled))
+	model.AutoCreate = types.BoolValue(base.Deref(config.Settings.AutoCreate))
 
 	// A database profile without a table name writes to the default table, so
 	// that is what a name cleared on the gateway shows as.
@@ -218,7 +210,7 @@ func (r *AuditProfileResource) MapClientToState(ctx context.Context, name string
 	model.RemoteServer = base.GatewayString(model.RemoteServer, config.Settings.RemoteServer)
 	model.RemoteProfile = base.GatewayString(model.RemoteProfile, config.Settings.RemoteProfile)
 
-	model.EnableStoreAndForward = types.BoolValue(config.Settings.EnableStoreAndForward)
+	model.EnableStoreAndForward = types.BoolValue(base.Deref(config.Settings.EnableStoreAndForward))
 
 	return nil
 }

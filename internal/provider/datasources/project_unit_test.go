@@ -17,7 +17,7 @@ func TestUnitProjectDataSource(t *testing.T) {
 			return &client.Project{
 				Name:        "test-project",
 				Description: "A test project",
-				Enabled:     true,
+				Enabled:     base.BoolPtr(true),
 				Title:       "Test Project",
 			}, nil
 		},

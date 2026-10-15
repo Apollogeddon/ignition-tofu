@@ -249,3 +249,29 @@ func GatewayString(current types.String, s string) types.String {
 func BoolPtr(b bool) *bool {
 	return &b
 }
+
+// KnownBool is v's value when the plan knows it, else nil, which leaves the gateway's value.
+func KnownBool(v types.Bool) *bool {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	return BoolPtr(v.ValueBool())
+}
+
+// KnownInt is v's value when the plan knows it, else nil, which leaves the gateway's value.
+func KnownInt(v types.Int64) *int {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	n := int(v.ValueInt64())
+	return &n
+}
+
+// Deref is *p, or the zero value when the gateway sent nothing.
+func Deref[T any](p *T) T {
+	var zero T
+	if p == nil {
+		return zero
+	}
+	return *p
+}

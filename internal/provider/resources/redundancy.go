@@ -244,7 +244,7 @@ func (r *RedundancyResource) MapPlanToClient(ctx context.Context, model *Redunda
 		config.GatewayNetworkSetup = &struct {
 			Host               string  `json:"host,omitempty"`
 			Port               int     `json:"port,omitempty"`
-			EnableSsl          bool    `json:"enableSsl,omitempty"`
+			EnableSsl          bool    `json:"enableSsl"`
 			PingRate           float64 `json:"pingRate,omitempty"`
 			PingTimeout        float64 `json:"pingTimeout,omitempty"`
 			PingMaxMissed      float64 `json:"pingMaxMissed,omitempty"`
