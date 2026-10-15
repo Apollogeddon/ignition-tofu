@@ -127,8 +127,19 @@ func NewClient(host, token string, allowInsecureTLS bool) (*Client, error) {
 var maxResponseBytes = 32 << 20
 
 // noResendKey marks a request that must not be sent twice: a repeated create
-// fails with "already exists" when the first one reached the gateway.
+// fails with "already exists", and a repeated signed update with "signature
+// mismatch", when the first one reached the gateway.
 type noResendKey struct{}
+
+// sendOnce marks a resource update as not to be sent twice: it carries the signature the
+// gateway checks, which the first update changes if it was applied, so a resent one fails
+// with a signature mismatch. A create (POST) is marked in doRequest.
+func sendOnce(ctx context.Context, method string) context.Context {
+	if method == http.MethodPut {
+		return context.WithValue(ctx, noResendKey{}, true)
+	}
+	return ctx
+}
 
 // retryPolicy is retryablehttp's default, except that a request marked with
 // noResendKey is retried only when the gateway can't have acted on it: the
@@ -241,7 +252,7 @@ func (c *Client) createOrUpdate(ctx context.Context, method, module, resourceTyp
 	}
 
 	path := apiPath("/data/api/v1/resources", module, resourceType)
-	body, err := c.doRequest(ctx, method, path, rb)
+	body, err := c.doRequest(sendOnce(ctx, method), method, path, rb)
 	if err != nil {
 		return err
 	}
@@ -267,7 +278,7 @@ func (c *Client) updateSingleton(ctx context.Context, module, resourceType strin
 	}
 
 	path := apiPath("/data/api/v1/resources", module, resourceType)
-	if _, err := c.doRequest(ctx, http.MethodPut, path, rb); err != nil {
+	if _, err := c.doRequest(sendOnce(ctx, http.MethodPut), http.MethodPut, path, rb); err != nil {
 		return err
 	}
 

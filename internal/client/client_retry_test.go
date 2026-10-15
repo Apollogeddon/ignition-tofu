@@ -319,3 +319,95 @@ func TestNewClient_InsecureTLSKeepsTransportDefaults(t *testing.T) {
 		t.Error("Expected the proxy setting and handshake timeout kept")
 	}
 }
+
+// A signed update the gateway applied but answered late isn't resent: the resend would carry
+// the signature the update just replaced.
+func TestClient_SignedUpdateNotResentAfterTimeout(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		update func(c *Client) error
+	}{
+		{"resource", func(c *Client) error {
+			var dest ResourceResponse[map[string]any]
+			return c.UpdateResource(context.Background(), "t", ResourceResponse[map[string]any]{Name: "x", Signature: "old"}, &dest)
+		}},
+		{"singleton", func(c *Client) error {
+			_, err := c.UpdateGanGeneralSettings(context.Background(), ResourceResponse[GanGeneralSettingsConfig]{Signature: "old"})
+			return err
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var puts int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPut {
+					_, _ = w.Write([]byte(`{"name": "x", "signature": "new", "config": {}}`))
+					return
+				}
+				if atomic.AddInt32(&puts, 1) == 1 {
+					time.Sleep(300 * time.Millisecond)
+					return
+				}
+				w.WriteHeader(http.StatusConflict)
+				_, _ = w.Write([]byte(`{"messages": ["signature mismatch"]}`))
+			}))
+			defer server.Close()
+
+			c, _ := NewClient(server.URL, "test-token", false)
+			c.HTTPClient.HTTPClient.Timeout = 100 * time.Millisecond
+			c.HTTPClient.RetryWaitMin = 10 * time.Millisecond
+			c.HTTPClient.RetryWaitMax = 50 * time.Millisecond
+
+			err := tc.update(c)
+			if err == nil || strings.Contains(err.Error(), "signature mismatch") {
+				t.Errorf("Expected the timeout, not a resent update: %v", err)
+			}
+			if n := atomic.LoadInt32(&puts); n != 1 {
+				t.Errorf("Expected 1 PUT, got %d", n)
+			}
+		})
+	}
+}
+
+// Updates that carry no signature (a project, the redundancy settings) are idempotent, so a
+// gateway restarting mid-update is still retried.
+func TestClient_UnsignedUpdateRetriedOn500(t *testing.T) {
+	var puts int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut && atomic.AddInt32(&puts, 1) == 1 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}))
+	defer server.Close()
+
+	c, _ := NewClient(server.URL, "test-token", false)
+	c.HTTPClient.RetryWaitMin = 10 * time.Millisecond
+	c.HTTPClient.RetryWaitMax = 50 * time.Millisecond
+	if err := c.UpdateRedundancyConfig(context.Background(), RedundancyConfig{}); err != nil {
+		t.Fatalf("Expected success after a retry, got %v", err)
+	}
+	if n := atomic.LoadInt32(&puts); n != 2 {
+		t.Errorf("Expected 2 PUTs, got %d", n)
+	}
+}
+
+// A delete is still retried: if the first one was applied, the retry finds nothing, and
+// ErrNotFound is what the resources treat as already destroyed.
+func TestClient_RetriedDeleteOfAnAppliedDeleteIsNotFound(t *testing.T) {
+	var deletes int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&deletes, 1) == 1 {
+			w.WriteHeader(http.StatusBadGateway) // applied, but the answer was lost
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	c, _ := NewClient(server.URL, "test-token", false)
+	c.HTTPClient.RetryWaitMin = 10 * time.Millisecond
+	c.HTTPClient.RetryWaitMax = 50 * time.Millisecond
+	if err := c.DeleteResource(context.Background(), "t", "x", "sig"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Expected ErrNotFound, got %v", err)
+	}
+}
