@@ -6,6 +6,7 @@ import (
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/base"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -88,6 +90,9 @@ func (r *GanOutgoingResource) Schema(ctx context.Context, req resource.SchemaReq
 				Optional:    true,
 				Computed:    true,
 				Default:     int64default.StaticInt64(8060),
+				Validators: []validator.Int64{
+					int64validator.Between(1, 65535),
+				},
 			},
 			"use_ssl": schema.BoolAttribute{
 				Description: "Whether to use SSL for the connection.",

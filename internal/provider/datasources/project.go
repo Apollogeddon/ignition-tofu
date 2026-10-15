@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
+	"github.com/apollogeddon/ignition-tofu/internal/provider/base"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -129,13 +130,13 @@ func (d *ProjectDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	} else {
 		data.Title = types.StringNull()
 	}
-	data.Enabled = types.BoolValue(res.Enabled)
+	data.Enabled = types.BoolValue(base.Deref(res.Enabled))
 	if res.Parent != "" {
 		data.Parent = types.StringValue(res.Parent)
 	} else {
 		data.Parent = types.StringNull()
 	}
-	data.Inheritable = types.BoolValue(res.Inheritable)
+	data.Inheritable = types.BoolValue(base.Deref(res.Inheritable))
 	if res.DefaultDB != "" {
 		data.DefaultDB = types.StringValue(res.DefaultDB)
 	} else {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/base"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -79,6 +80,9 @@ func (r *StoreAndForwardResource) Schema(ctx context.Context, req resource.Schem
 			"value": schema.Int64Attribute{
 				Description: "The limit, in the units of limit_type.",
 				Required:    true,
+				Validators: []validator.Int64{
+					int64validator.AtLeast(0),
+				},
 			},
 		},
 	}
@@ -114,12 +118,18 @@ func (r *StoreAndForwardResource) Schema(ctx context.Context, req resource.Schem
 				Optional:    true,
 				Computed:    true,
 				Default:     int64default.StaticInt64(1000),
+				Validators: []validator.Int64{
+					int64validator.AtLeast(1),
+				},
 			},
 			"forward_rate_ms": schema.Int64Attribute{
 				Description: "Rate at which data is eligible for forwarding.",
 				Optional:    true,
 				Computed:    true,
 				Default:     int64default.StaticInt64(1000),
+				Validators: []validator.Int64{
+					int64validator.AtLeast(1),
+				},
 			},
 			"forwarding_policy": schema.StringAttribute{
 				Description: "Policy for forwarding (ALL, PRIMARY_ONLY, SECONDARY_ONLY).",
@@ -145,18 +155,27 @@ func (r *StoreAndForwardResource) Schema(ctx context.Context, req resource.Schem
 				Optional:    true,
 				Computed:    true,
 				Default:     int64default.StaticInt64(100),
+				Validators: []validator.Int64{
+					int64validator.AtLeast(1),
+				},
 			},
 			"batch_size": schema.Int64Attribute{
 				Description: "Batch size for forwarding.",
 				Optional:    true,
 				Computed:    true,
 				Default:     int64default.StaticInt64(100),
+				Validators: []validator.Int64{
+					int64validator.AtLeast(1),
+				},
 			},
 			"scan_rate_ms": schema.Int64Attribute{
 				Description: "Rate at which data pipelines are scanned.",
 				Optional:    true,
 				Computed:    true,
 				Default:     int64default.StaticInt64(1000),
+				Validators: []validator.Int64{
+					int64validator.AtLeast(1),
+				},
 			},
 			"primary_policy": schema.SingleNestedAttribute{
 				Description: "Maintenance policy for primary datastore (memory).",

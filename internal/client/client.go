@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -107,19 +108,57 @@ func NewClient(host, token string, allowInsecureTLS bool) (*Client, error) {
 	rc.RetryMax = 10
 	rc.Logger = nil
 	rc.ErrorHandler = retryablehttp.PassthroughErrorHandler
+	rc.CheckRetry = retryPolicy
 	rc.HTTPClient.Timeout = 10 * time.Second
 
 	if allowInsecureTLS {
-		rc.HTTPClient.Transport = &http.Transport{
-			// allow_insecure_tls is an explicit opt-in, for gateways with a self-signed certificate
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // see above
-		}
+		// a clone keeps the default transport's proxy settings and dial and handshake timeouts
+		t := http.DefaultTransport.(*http.Transport).Clone()
+		// allow_insecure_tls is an explicit opt-in, for gateways with a self-signed certificate
+		t.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // see above
+		rc.HTTPClient.Transport = t
 	}
 
-	return &Client{HTTPClient: rc, HostURL: host, Token: token}, nil
+	return &Client{HTTPClient: rc, HostURL: strings.TrimRight(host, "/"), Token: token}, nil
+}
+
+// maxResponseBytes caps what is read of one response; the gateway's are a
+// few kilobytes, so anything near this is not a gateway answering.
+var maxResponseBytes = 32 << 20
+
+// noResendKey marks a request that must not be sent twice: a repeated create
+// fails with "already exists", and a repeated signed update with "signature
+// mismatch", when the first one reached the gateway.
+type noResendKey struct{}
+
+// sendOnce marks a resource update as not to be sent twice: it carries the signature the
+// gateway checks, which the first update changes if it was applied, so a resent one fails
+// with a signature mismatch. A create (POST) is marked in doRequest.
+func sendOnce(ctx context.Context, method string) context.Context {
+	if method == http.MethodPut {
+		return context.WithValue(ctx, noResendKey{}, true)
+	}
+	return ctx
+}
+
+// retryPolicy is retryablehttp's default, except that a request marked with
+// noResendKey is retried only when the gateway can't have acted on it: the
+// connection was refused, or it answered 429 or 503.
+func retryPolicy(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	if ctx.Err() == nil && ctx.Value(noResendKey{}) != nil {
+		if err != nil {
+			var opErr *net.OpError
+			return errors.As(err, &opErr) && opErr.Op == "dial", nil
+		}
+		return resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable, nil
+	}
+	return retryablehttp.DefaultRetryPolicy(ctx, resp, err)
 }
 
 func (c *Client) doRequest(ctx context.Context, method, path string, body []byte, contentType ...string) ([]byte, error) {
+	if method == http.MethodPost {
+		ctx = context.WithValue(ctx, noResendKey{}, true)
+	}
 	req, err := retryablehttp.NewRequestWithContext(ctx, method, c.HostURL+path, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
@@ -140,9 +179,13 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	}
 	defer func() { _ = res.Body.Close() }()
 
-	bodyBytes, err := io.ReadAll(res.Body)
+	// one byte past the cap tells a body at the cap from a longer one
+	bodyBytes, err := io.ReadAll(io.LimitReader(res.Body, int64(maxResponseBytes)+1))
 	if err != nil {
 		return nil, err
+	}
+	if len(bodyBytes) > maxResponseBytes {
+		return nil, fmt.Errorf("response from %s %s is over %d bytes", method, path, maxResponseBytes)
 	}
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
@@ -209,7 +252,7 @@ func (c *Client) createOrUpdate(ctx context.Context, method, module, resourceTyp
 	}
 
 	path := apiPath("/data/api/v1/resources", module, resourceType)
-	body, err := c.doRequest(ctx, method, path, rb)
+	body, err := c.doRequest(sendOnce(ctx, method), method, path, rb)
 	if err != nil {
 		return err
 	}
@@ -235,7 +278,7 @@ func (c *Client) updateSingleton(ctx context.Context, module, resourceType strin
 	}
 
 	path := apiPath("/data/api/v1/resources", module, resourceType)
-	if _, err := c.doRequest(ctx, http.MethodPut, path, rb); err != nil {
+	if _, err := c.doRequest(sendOnce(ctx, http.MethodPut), http.MethodPut, path, rb); err != nil {
 		return err
 	}
 
@@ -275,8 +318,11 @@ func (c *Client) unmarshalResourceResponse(ctx context.Context, module, resource
 	}
 
 	var rawItems []json.RawMessage
-	if err := json.Unmarshal(body, &rawItems); err != nil || len(rawItems) == 0 {
+	if err := json.Unmarshal(body, &rawItems); err != nil {
 		return fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	if len(rawItems) == 0 {
+		return errors.New("failed to unmarshal response: no resource in the response")
 	}
 
 	return json.Unmarshal(rawItems[0], dest)
@@ -625,7 +671,7 @@ func (c *Client) CreateProject(ctx context.Context, p Project) (*Project, error)
 	if _, err := c.doRequest(ctx, http.MethodPost, "/data/api/v1/projects", rb); err != nil {
 		return nil, err
 	}
-	return c.waitForProject(ctx, p.Name)
+	return c.waitForProject(ctx, p)
 }
 
 func (c *Client) UpdateProject(ctx context.Context, p Project) (*Project, error) {
@@ -636,7 +682,7 @@ func (c *Client) UpdateProject(ctx context.Context, p Project) (*Project, error)
 	if _, err := c.doRequest(ctx, http.MethodPut, apiPath("/data/api/v1/projects", p.Name), rb); err != nil {
 		return nil, err
 	}
-	return c.waitForProject(ctx, p.Name)
+	return c.waitForProject(ctx, p)
 }
 
 func (c *Client) DeleteProject(ctx context.Context, name string) error {
@@ -644,7 +690,9 @@ func (c *Client) DeleteProject(ctx context.Context, name string) error {
 	return err
 }
 
-func (c *Client) waitForProject(ctx context.Context, name string) (*Project, error) {
+// waitForProject polls until the gateway shows the project with every field
+// that was sent, so an update doesn't return the project as it was before.
+func (c *Client) waitForProject(ctx context.Context, want Project) (*Project, error) {
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 	timeout := time.After(10 * time.Second)
@@ -654,11 +702,24 @@ func (c *Client) waitForProject(ctx context.Context, name string) (*Project, err
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-timeout:
-			return c.GetProject(ctx, name)
+			return c.GetProject(ctx, want.Name)
 		case <-ticker.C:
-			if p, err := c.GetProject(ctx, name); err == nil {
+			if p, err := c.GetProject(ctx, want.Name); err == nil && projectApplied(*p, want) {
 				return p, nil
 			}
 		}
 	}
+}
+
+// projectApplied reports whether got holds every field sent in want: the
+// request omits empty strings and unset booleans, so only those that were set count.
+func projectApplied(got, want Project) bool {
+	same := func(g, w string) bool { return w == "" || g == w }
+	sameBool := func(g, w *bool) bool { return w == nil || (g != nil && *g == *w) }
+	return got.Name == want.Name &&
+		same(got.Description, want.Description) && same(got.Title, want.Title) &&
+		same(got.Parent, want.Parent) && same(got.DefaultDB, want.DefaultDB) &&
+		same(got.TagProvider, want.TagProvider) && same(got.UserSource, want.UserSource) &&
+		same(got.IdentityProvider, want.IdentityProvider) &&
+		sameBool(got.Enabled, want.Enabled) && sameBool(got.Inheritable, want.Inheritable)
 }

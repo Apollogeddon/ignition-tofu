@@ -181,7 +181,7 @@ func TestClient_ProjectOperations(t *testing.T) {
 			if r.URL.Path != "/data/api/v1/projects/find/test-project" {
 				t.Errorf("Expected path /data/api/v1/projects/find/test-project, got %s", r.URL.Path)
 			}
-			p := Project{Name: "test-project", Enabled: true}
+			p := Project{Name: "test-project", Enabled: boolPtr(true)}
 			_ = json.NewEncoder(w).Encode(p)
 		case http.MethodPost:
 			if r.URL.Path != "/data/api/v1/projects" {
@@ -211,7 +211,7 @@ func TestClient_ProjectOperations(t *testing.T) {
 	ctx := context.Background()
 
 	// Test Create
-	p := Project{Name: "test-project", Enabled: true}
+	p := Project{Name: "test-project", Enabled: boolPtr(true)}
 	created, err := c.CreateProject(ctx, p)
 	if err != nil {
 		t.Fatalf("CreateProject failed: %v", err)

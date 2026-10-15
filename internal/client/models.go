@@ -74,20 +74,22 @@ type UserSourceProfile struct {
 	Type               string `json:"type"`
 	FailoverProfile    string `json:"failoverProfile,omitempty"`
 	FailoverMode       string `json:"failoverMode,omitempty"`
-	ScheduleRestricted bool   `json:"scheduleRestricted,omitempty"`
+	ScheduleRestricted bool   `json:"scheduleRestricted"`
 }
 
 type UserSourceConfig struct {
 	Profile UserSourceProfile `json:"profile"`
 }
 
+// Project's and the audit profile's optional booleans and numbers are pointers: nil leaves
+// the gateway's value, while false or 0 is sent, which omitempty on a plain value would drop.
 type Project struct {
 	Name             string `json:"name,omitempty"`
 	Description      string `json:"description,omitempty"`
 	Title            string `json:"title,omitempty"`
-	Enabled          bool   `json:"enabled,omitempty"`
+	Enabled          *bool  `json:"enabled,omitempty"`
 	Parent           string `json:"parent,omitempty"`
-	Inheritable      bool   `json:"inheritable,omitempty"`
+	Inheritable      *bool  `json:"inheritable,omitempty"`
 	DefaultDB        string `json:"defaultDb,omitempty"`
 	TagProvider      string `json:"tagProvider,omitempty"`
 	UserSource       string `json:"userSource,omitempty"`
@@ -96,17 +98,17 @@ type Project struct {
 
 type AuditProfileSettings struct {
 	DatabaseName          string `json:"databaseName,omitempty"`
-	PruneEnabled          bool   `json:"pruneEnabled,omitempty"`
-	AutoCreate            bool   `json:"autoCreate,omitempty"`
+	PruneEnabled          *bool  `json:"pruneEnabled,omitempty"`
+	AutoCreate            *bool  `json:"autoCreate,omitempty"`
 	TableName             string `json:"tableName,omitempty"`
 	RemoteServer          string `json:"remoteServer,omitempty"`
 	RemoteProfile         string `json:"remoteProfile,omitempty"`
-	EnableStoreAndForward bool   `json:"enableStoreAndForward,omitempty"`
+	EnableStoreAndForward *bool  `json:"enableStoreAndForward,omitempty"`
 }
 
 type AuditProfileProfile struct {
 	Type          string `json:"type"`
-	RetentionDays int    `json:"retentionDays,omitempty"`
+	RetentionDays *int   `json:"retentionDays,omitempty"`
 }
 
 type AuditProfileConfig struct {
@@ -302,7 +304,7 @@ type RedundancyConfig struct {
 	GatewayNetworkSetup *struct {
 		Host               string  `json:"host,omitempty"`
 		Port               int     `json:"port,omitempty"`
-		EnableSsl          bool    `json:"enableSsl,omitempty"`
+		EnableSsl          bool    `json:"enableSsl"`
 		PingRate           float64 `json:"pingRate,omitempty"`
 		PingTimeout        float64 `json:"pingTimeout,omitempty"`
 		PingMaxMissed      float64 `json:"pingMaxMissed,omitempty"`

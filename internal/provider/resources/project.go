@@ -133,7 +133,7 @@ func (r *ProjectResource) Configure(ctx context.Context, req resource.ConfigureR
 			}
 			return &client.ResourceResponse[client.Project]{
 				Name:      p.Name,
-				Enabled:   &p.Enabled,
+				Enabled:   base.BoolPtr(base.Deref(p.Enabled)),
 				Signature: p.Name,
 				Config:    *p,
 			}, nil
@@ -145,7 +145,7 @@ func (r *ProjectResource) Configure(ctx context.Context, req resource.ConfigureR
 			}
 			return &client.ResourceResponse[client.Project]{
 				Name:      p.Name,
-				Enabled:   &p.Enabled,
+				Enabled:   base.BoolPtr(base.Deref(p.Enabled)),
 				Signature: p.Name,
 				Config:    *p,
 			}, nil
@@ -157,7 +157,7 @@ func (r *ProjectResource) Configure(ctx context.Context, req resource.ConfigureR
 			}
 			return &client.ResourceResponse[client.Project]{
 				Name:      p.Name,
-				Enabled:   &p.Enabled,
+				Enabled:   base.BoolPtr(base.Deref(p.Enabled)),
 				Signature: p.Name,
 				Config:    *p,
 			}, nil
@@ -178,15 +178,11 @@ func (r *ProjectResource) MapPlanToClient(ctx context.Context, model *ProjectRes
 	if !model.Title.IsNull() {
 		p.Title = model.Title.ValueString()
 	}
-	if !model.Enabled.IsNull() {
-		p.Enabled = model.Enabled.ValueBool()
-	}
+	p.Enabled = base.KnownBool(model.Enabled)
 	if !model.Parent.IsNull() {
 		p.Parent = model.Parent.ValueString()
 	}
-	if !model.Inheritable.IsNull() {
-		p.Inheritable = model.Inheritable.ValueBool()
-	}
+	p.Inheritable = base.KnownBool(model.Inheritable)
 	if !model.DefaultDB.IsNull() {
 		p.DefaultDB = model.DefaultDB.ValueString()
 	}
@@ -206,9 +202,9 @@ func (r *ProjectResource) MapClientToState(ctx context.Context, name string, p *
 	model.Name = types.StringValue(name)
 	model.Description = base.GatewayString(model.Description, p.Description)
 	model.Title = base.GatewayString(model.Title, p.Title)
-	model.Enabled = types.BoolValue(p.Enabled)
+	model.Enabled = types.BoolValue(base.Deref(p.Enabled))
 	model.Parent = base.GatewayString(model.Parent, p.Parent)
-	model.Inheritable = types.BoolValue(p.Inheritable)
+	model.Inheritable = types.BoolValue(base.Deref(p.Inheritable))
 	model.DefaultDB = base.GatewayString(model.DefaultDB, p.DefaultDB)
 	model.TagProvider = base.GatewayString(model.TagProvider, p.TagProvider)
 	model.UserSource = base.GatewayString(model.UserSource, p.UserSource)

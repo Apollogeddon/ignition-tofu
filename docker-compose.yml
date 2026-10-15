@@ -5,7 +5,8 @@ services:
       dockerfile: bootstrap/Dockerfile
     container_name: ignition-tofu
     ports:
-      - "8088:8088"
+      # loopback only: the test gateway has a fixed admin password and API token
+      - "127.0.0.1:8088:8088"
     environment:
       - ACCEPT_IGNITION_EULA=Y
       - GATEWAY_ADMIN_PASSWORD=password123

@@ -97,7 +97,6 @@ jobs:
     uses: apollogeddon/forgego/.github/workflows/testing.yml@main
     with:
       enable_secrets: false
-    secrets: inherit
     # its patch job commits on main
     permissions:
       contents: write
@@ -112,6 +111,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@v0.36.0
@@ -129,7 +130,6 @@ jobs:
   ignition:
     needs: [testing, trivy]
     uses: ./.github/workflows/ignition.yaml
-    secrets: inherit
 
   # forgego's service pipeline, after the acceptance tests rather than its own checks:
   # release-please versions the provider and opens the release pull request, and when it

@@ -6,6 +6,7 @@ import (
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/base"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -114,6 +115,9 @@ func (r *AlarmNotificationProfileResource) Schema(ctx context.Context, req resou
 						Description: "SMTP Server Port (if use_smtp_profile is false).",
 						Optional:    true,
 						Computed:    true,
+						Validators: []validator.Int64{
+							int64validator.Between(1, 65535),
+						},
 					},
 					"ssl_enabled": schema.BoolAttribute{
 						Description: "Enable SSL/TLS (if use_smtp_profile is false).",

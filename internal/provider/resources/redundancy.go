@@ -6,6 +6,7 @@ import (
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/base"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -108,6 +109,9 @@ func (r *RedundancyResource) Schema(ctx context.Context, req resource.SchemaRequ
 				Optional:    true,
 				Computed:    true,
 				Default:     int64default.StaticInt64(10000),
+				Validators: []validator.Int64{
+					int64validator.AtLeast(0),
+				},
 			},
 			"recovery_mode": schema.StringAttribute{
 				Description: "How control returns to the master after a failover, e.g. Automatic or Manual.",
@@ -141,6 +145,9 @@ func (r *RedundancyResource) Schema(ctx context.Context, req resource.SchemaRequ
 						Optional:    true,
 						Computed:    true,
 						Default:     int64default.StaticInt64(8060),
+						Validators: []validator.Int64{
+							int64validator.Between(1, 65535),
+						},
 					},
 					"enable_ssl": schema.BoolAttribute{
 						Description: "Whether to use SSL for the connection to the master.",
@@ -237,7 +244,7 @@ func (r *RedundancyResource) MapPlanToClient(ctx context.Context, model *Redunda
 		config.GatewayNetworkSetup = &struct {
 			Host               string  `json:"host,omitempty"`
 			Port               int     `json:"port,omitempty"`
-			EnableSsl          bool    `json:"enableSsl,omitempty"`
+			EnableSsl          bool    `json:"enableSsl"`
 			PingRate           float64 `json:"pingRate,omitempty"`
 			PingTimeout        float64 `json:"pingTimeout,omitempty"`
 			PingMaxMissed      float64 `json:"pingMaxMissed,omitempty"`
