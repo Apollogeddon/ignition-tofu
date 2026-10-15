@@ -45,19 +45,15 @@ type GenericIgnitionResource[T any, M any] struct {
 // client, because its configuration wasn't known when it was configured.
 func AddUnconfiguredError(diags *diag.Diagnostics) {
 	diags.AddError("Provider not configured",
-		"The provider's host, token or another attribute is only known after apply, so it can't reach the gateway yet. "+
-			"Apply the resources it depends on first, or set the provider's attributes from values known at plan time.")
+		"The provider has no connection to the gateway: its configuration failed or wasn't known when it was configured.")
 }
 
-// KeepStateUnconfigured reports whether Read should leave the state as it is because the
-// provider can't reach the gateway yet; a resource being imported has nothing to keep.
-func KeepStateUnconfigured(c client.IgnitionClient, signature types.String, diags *diag.Diagnostics) bool {
+// Unconfigured reports, as an error, a call that needs the gateway while the provider has no client.
+func Unconfigured(c client.IgnitionClient, diags *diag.Diagnostics) bool {
 	if c != nil {
 		return false
 	}
-	if signature.IsNull() || signature.IsUnknown() {
-		AddUnconfiguredError(diags)
-	}
+	AddUnconfiguredError(diags)
 	return true
 }
 
@@ -125,7 +121,7 @@ func (r *GenericIgnitionResource[T, M]) Read(ctx context.Context, req resource.R
 		return
 	}
 
-	if baseModel.Name.ValueString() == "" || KeepStateUnconfigured(r.Client, baseModel.Signature, &resp.Diagnostics) {
+	if baseModel.Name.ValueString() == "" || Unconfigured(r.Client, &resp.Diagnostics) {
 		return
 	}
 

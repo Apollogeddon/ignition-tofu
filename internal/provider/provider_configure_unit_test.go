@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,13 +53,15 @@ func TestUnitConfigureUnknownHostDefers(t *testing.T) {
 	}
 }
 
+// Without deferral (OpenTofu) an unknown attribute is an error naming it: planning without the
+// gateway would leave existing resources unrefreshed.
 func TestUnitConfigureUnknownTokenWithoutDeferral(t *testing.T) {
 	resp := configure(t, false, tftypes.NewValue(tftypes.String, "http://gw:8088"), unknownString, nullNumber)
-	if resp.Diagnostics.HasError() {
-		t.Fatalf("Expected no error, got %v", resp.Diagnostics)
+	if resp.Diagnostics.ErrorsCount() != 1 || resp.ResourceData != nil || resp.DataSourceData != nil || resp.Deferred != nil {
+		t.Fatalf("Expected one error and no client, got %v / %v", resp.Diagnostics, resp.ResourceData)
 	}
-	if resp.Diagnostics.WarningsCount() != 1 || resp.ResourceData != nil || resp.DataSourceData != nil {
-		t.Errorf("Expected one warning and no client, got %v / %v", resp.Diagnostics, resp.ResourceData)
+	if d := resp.Diagnostics.Errors()[0]; !strings.Contains(d.Detail(), "token") || !strings.Contains(d.Detail(), "-target") {
+		t.Errorf("Expected the error to name token and the way out, got %q", d.Detail())
 	}
 }
 
@@ -99,17 +102,18 @@ data "ignition_project" "p" {
 	}
 }
 
-// A host another resource sets plans and applies: the provider is configured at apply,
-// and a later plan with the host unknown again keeps the existing resource's state.
+// On OpenTofu, which can't defer, a host another resource sets is refused rather than
+// planned against an unrefreshed state: a gateway replaced in the same run would otherwise
+// be left without the resources state says it has.
 func TestUnitHostKnownOnlyAtApply(t *testing.T) {
-	var gets int
+	var creates int
 	mock := &client.MockClient{
 		CreateUserSourceFunc: func(_ context.Context, us client.ResourceResponse[client.UserSourceConfig]) (*client.ResourceResponse[client.UserSourceConfig], error) {
+			creates++
 			us.Signature = "sig"
 			return &us, nil
 		},
 		GetUserSourceFunc: func(_ context.Context, name string) (*client.ResourceResponse[client.UserSourceConfig], error) {
-			gets++
 			return &client.ResourceResponse[client.UserSourceConfig]{
 				Name: name, Enabled: base.BoolPtr(true), Signature: "sig",
 				Config: client.UserSourceConfig{Profile: client.UserSourceProfile{Type: "INTERNAL"}},
@@ -120,35 +124,43 @@ func TestUnitHostKnownOnlyAtApply(t *testing.T) {
 	factories := map[string]func() (tfprotov6.ProviderServer, error){
 		"ignition": providerserver.NewProtocol6WithError(&IgnitionProvider{version: "test", client: mock}),
 	}
-	config := func(host string) string {
-		return `
-resource "terraform_data" "host" {
-  input = "` + host + `"
-}
+	known := `
 provider "ignition" {
-  host  = terraform_data.host.output
+  host  = "http://gw-1:8088"
   token = "t"
 }
+`
+	userSource := `
 resource "ignition_user_source" "test" {
   name = "us"
   type = "INTERNAL"
 }
 `
-	}
 	resource.UnitTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: factories,
 		Steps: []resource.TestStep{
 			{
-				Config: config("http://gw-1:8088"),
+				Config: known + userSource,
 				Check:  resource.TestCheckResourceAttr("ignition_user_source.test", "signature", "sig"),
 			},
+			// the gateway is replaced in the same run: its new address isn't known at plan time
 			{
-				Config: config("http://gw-2:8088"),
-				Check:  resource.TestCheckResourceAttr("ignition_user_source.test", "type", "INTERNAL"),
+				Config: `
+resource "terraform_data" "host" {
+  input = "http://gw-2:8088"
+}
+provider "ignition" {
+  host  = terraform_data.host.output
+  token = "t"
+}
+` + userSource,
+				ExpectError: regexp.MustCompile(`(?s)host comes from a value that is only known after apply.*-target`),
 			},
+			// back on a known host, so the test's destroy can reach the gateway
+			{Config: known + userSource, PlanOnly: true},
 		},
 	})
-	if gets == 0 {
-		t.Error("Expected the user source to be read once the host was known")
+	if creates != 1 {
+		t.Errorf("Expected only the first step to create, got %d creates", creates)
 	}
 }

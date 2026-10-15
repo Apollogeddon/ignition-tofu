@@ -66,7 +66,8 @@ func (p *IgnitionProvider) Schema(ctx context.Context, req provider.SchemaReques
 			"request_timeout": schema.Int64Attribute{
 				Description: "The longest one request to the gateway may take, in seconds, including its retries and the waits between them: " +
 					"a gateway that is down or answering with errors fails the plan after this rather than after every retry. " +
-					"From 1 to 3600; defaults to 60. Each attempt also has a timeout of its own of 10 seconds.",
+					"From 1 to 3600; defaults to 60; raise it for a slow host or a gateway whose modules take longer to restart. " +
+					"Each attempt also has a timeout of its own of 10 seconds.",
 				Optional: true,
 				Validators: []validator.Int64{
 					int64validator.Between(1, maxRequestTimeout),
@@ -85,19 +86,30 @@ func (p *IgnitionProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// A value another resource sets is unknown until apply, which configures the provider
-	// again with it. Until then: defer where the client can, else stay unconfigured, so a
-	// plan creates new resources and keeps the state it has for existing ones.
-	if data.Host.IsUnknown() || data.Token.IsUnknown() || data.AllowInsecureTLS.IsUnknown() || data.RequestTimeout.IsUnknown() {
+	// A value another resource sets is unknown until apply. A client that can defer plans the
+	// provider's resources once it is known. Otherwise (OpenTofu) it's an error: planning
+	// without the gateway would keep existing resources' state unrefreshed, so a gateway
+	// replaced in the same run would silently lack them, and Configure can't see the state
+	// to tell a first create from that.
+	unknown := map[string]bool{
+		"host":               data.Host.IsUnknown(),
+		"token":              data.Token.IsUnknown(),
+		"allow_insecure_tls": data.AllowInsecureTLS.IsUnknown(),
+		"request_timeout":    data.RequestTimeout.IsUnknown(),
+	}
+	if unknown["host"] || unknown["token"] || unknown["allow_insecure_tls"] || unknown["request_timeout"] {
 		if req.ClientCapabilities.DeferralAllowed {
 			resp.Deferred = &provider.Deferred{Reason: provider.DeferredReasonProviderConfigUnknown}
 			return
 		}
-		resp.Diagnostics.AddWarning(
-			"Provider configuration not known until apply",
-			"A provider attribute comes from a value that is only known after apply, so this plan can't reach the gateway: "+
-				"resources already in state are not refreshed, and data sources can't be read until the value is known.",
-		)
+		for _, name := range []string{"host", "token", "allow_insecure_tls", "request_timeout"} {
+			if unknown[name] {
+				resp.Diagnostics.AddAttributeError(path.Root(name), "Provider configuration not known until apply",
+					"The provider's "+name+" comes from a value that is only known after apply, and this client can't defer "+
+						"the provider until then. Apply what sets it first (for example tofu apply -target=<that resource>), "+
+						"or set it from a value known at plan time.")
+			}
+		}
 		return
 	}
 

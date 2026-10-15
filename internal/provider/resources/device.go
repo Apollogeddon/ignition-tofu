@@ -216,7 +216,7 @@ func (r *DeviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if data.Name.ValueString() == "" || base.KeepStateUnconfigured(r.generic.Client, data.Signature, &resp.Diagnostics) {
+	if data.Name.ValueString() == "" || base.Unconfigured(r.generic.Client, &resp.Diagnostics) {
 		return
 	}
 
