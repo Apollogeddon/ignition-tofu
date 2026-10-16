@@ -6,6 +6,9 @@ on:
   push:
     branches:
       - main
+  # a Dependabot merge to the site deploys it, as a push to main does; the merge itself starts no push run
+  repository_dispatch:
+    types: [auto-merged]
   workflow_call:
   workflow_dispatch:
 
