@@ -42,7 +42,7 @@ The git hooks format staged Go files, check that forgego's files are current and
 
 forgego's [`testing.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/testing.yml) runs:
 
-- **Quality**: `go mod tidy -diff`, the golangci-lint format check and lint (forgego's base configuration merged with `.golangci.local.yml` into `.golangci.yml`), a check that forgego's files are current, govulncheck and OSV-Scanner.
+- **Quality**: `go mod tidy -diff`, the golangci-lint format check and lint (forgego's base configuration merged with `.golangci.local.yml` into `.golangci.yml`), a check that forgego's files are current, govulncheck and OSV-Scanner (`osv-scanner.toml` lists the findings accepted until a set date, each with its reason).
 - **Unit tests**: `task test`.
 - **Build**: `task build`.
 - **Patch**: on `main`, upgrades modules that govulncheck reports as vulnerable and commits the fix.

@@ -1,0 +1,6 @@
+# No fixed braces release exists yet. It's reached only through micromatch in markdownlint-cli2,
+# the docs lint tool, which matches the repository's own lint globs, never untrusted input
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2027-01-15
+reason = "No fixed braces release; only markdownlint-cli2's own glob patterns reach it"
