@@ -20,12 +20,7 @@ func TestAccDeviceResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: provider.TestAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create and Read testing. The parameters JSON must specify every
-			// settable field for this driver (repeat, legacyMode,
-			// timeIntervalRate) — the gateway fills in defaults for any
-			// omitted field, and since "parameters" is a Required (not
-			// Computed) attribute, Terraform requires state to exactly match
-			// what was planned, so partial JSON would drift after apply.
+			// Create and Read testing, with every setting the driver has.
 			{
 				Config: testAccDeviceResourceConfig(rName, 1000),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -52,8 +47,28 @@ func TestAccDeviceResource(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 			},
+			// Partial parameters: the gateway's defaults for the settings left
+			// out are neither an inconsistent result nor drift.
+			{
+				Config: testAccDevicePartialConfig(rName, 3000),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("ignition_device.test", "parameters", `{"timeIntervalRate":3000}`),
+				),
+			},
 		},
 	})
+}
+
+func testAccDevicePartialConfig(name string, timeIntervalRate int) string {
+	return fmt.Sprintf(`
+provider "ignition" {}
+
+resource "ignition_device" "test" {
+  name       = %[1]q
+  type       = "ProgrammableSimulatorDevice"
+  parameters = "{\"timeIntervalRate\":%[2]d}"
+}
+`, name, timeIntervalRate)
 }
 
 func testAccDeviceResourceConfig(name string, timeIntervalRate int) string {

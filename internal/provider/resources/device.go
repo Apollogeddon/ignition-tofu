@@ -73,8 +73,13 @@ func (r *DeviceResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				},
 			},
 			"parameters": schema.StringAttribute{
-				Description: "The JSON configuration parameters for the device. These vary by device type.",
-				Required:    true,
+				Description: "The JSON configuration parameters for the device. These vary by device type. " +
+					"Set only the ones you need: the gateway fills in its defaults for the rest, and the provider " +
+					"compares only the keys you set, so the defaults never show as drift. Nested objects are compared key by key, " +
+					"but a list is compared whole, so give each list element in full. After an import, state holds every setting " +
+					"and the first plan narrows this to the keys you set: that update resets any setting you leave out to its default, " +
+					"so list every setting you want to keep before you apply.",
+				Required: true,
 			},
 			"signature": schema.StringAttribute{
 				Description: "The signature of the resource, used for updates and deletes.",
@@ -122,29 +127,58 @@ func (r *DeviceResource) MapPlanToClient(ctx context.Context, model *DeviceResou
 func (r *DeviceResource) MapClientToState(ctx context.Context, name string, config *client.DeviceConfig, model *DeviceResourceModel) error {
 	model.Name = types.StringValue(name)
 
-	// Marshal the API response to canonical JSON
 	b, err := json.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal parameters to JSON: %w", err)
 	}
-	canonicalAPI := string(b)
+	var gateway any
+	if err := json.Unmarshal(b, &gateway); err != nil {
+		return fmt.Errorf("failed to read the gateway's parameters: %w", err)
+	}
 
 	if !model.Parameters.IsNull() && !model.Parameters.IsUnknown() {
-		var modelConfig client.DeviceConfig
-		if err := json.Unmarshal([]byte(model.Parameters.ValueString()), &modelConfig); err == nil {
-			bModel, _ := json.Marshal(modelConfig)
-			if string(bModel) == canonicalAPI {
-				// They are semantically equal (ignoring whitespace), so keep the Plan value
-				// to satisfy Terraform's consistency check.
+		var want any
+		if err := json.Unmarshal([]byte(model.Parameters.ValueString()), &want); err == nil {
+			// Compare only the keys the configuration sets: the gateway adds its
+			// defaults for the rest, which would otherwise read as drift.
+			got, err := json.Marshal(projectParameters(gateway, want))
+			if err != nil {
+				return fmt.Errorf("failed to marshal parameters to JSON: %w", err)
+			}
+			if bWant, _ := json.Marshal(want); string(bWant) == string(got) {
+				// Keep the configured text (its key order and spacing) to satisfy Terraform's consistency check.
 				return nil
 			}
+			model.Parameters = types.StringValue(string(got))
+			return nil
 		}
 	}
 
-	// If they differ (or model is null/unknown), accept the API's canonical value
-	model.Parameters = types.StringValue(canonicalAPI)
+	// On import there is no configuration to compare with, so state takes every key.
+	model.Parameters = types.StringValue(string(b))
 
 	return nil
+}
+
+// projectParameters keeps the parts of the gateway's parameters at the keys
+// want sets, recursing into nested objects. Any other value, a list included,
+// is the gateway's whole, so a changed or missing key still shows as drift.
+func projectParameters(gateway, want any) any {
+	wantObject, ok := want.(map[string]any)
+	if !ok {
+		return gateway
+	}
+	gatewayObject, ok := gateway.(map[string]any)
+	if !ok {
+		return gateway
+	}
+	out := make(map[string]any, len(wantObject))
+	for k, w := range wantObject {
+		if g, ok := gatewayObject[k]; ok {
+			out[k] = projectParameters(g, w)
+		}
+	}
+	return out
 }
 
 func (r *DeviceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
