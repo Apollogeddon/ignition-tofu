@@ -93,6 +93,6 @@ Destroying a singleton cannot remove the settings from the gateway:
 
 ## Behavior
 
-- **Type-specific settings**: resources such as `ignition_identity_provider`, `ignition_alarm_journal` and `ignition_audit_profile` take a `type` attribute, and the settings that apply depend on it. `ignition_device` takes its type-specific settings as a JSON `parameters` string.
+- **Type-specific settings**: resources such as `ignition_identity_provider`, `ignition_alarm_journal` and `ignition_audit_profile` take a `type` attribute, and the settings that apply depend on it. `ignition_device` takes its type-specific settings as a JSON `parameters` string. Set only the settings you need: the gateway gives the rest its defaults, and the provider compares only the keys you set, so those defaults don't show as drift.
 - **Secrets**: passwords and client secrets are encrypted by the gateway's encryption endpoint before the provider writes them to the gateway configuration. They are marked sensitive, so `plan` output hides them, but like any secret in your configuration they are stored in your state. Store state somewhere secure.
 - **Drift detection**: `plan` reads each resource from the gateway and shows changes made in the Designer or the gateway web interface. `apply` reverts them to your configuration.
