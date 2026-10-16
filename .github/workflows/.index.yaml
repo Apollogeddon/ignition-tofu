@@ -19,6 +19,9 @@ on:
       - '.github/workflows/ignition.yaml'
   pull_request:
   workflow_dispatch:
+  # sent by the auto-merge job, as a merge it makes starts no push run on main
+  repository_dispatch:
+    types: [auto-merged]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -53,7 +56,7 @@ jobs:
           CODE_INPUTS: '^(go\.(mod|sum)$|main\.go$|internal/|\.forgego/|\.golangci.*\.yml$|Taskfile\.yml$|docker-compose\.yml$|bootstrap/|assets/|\.github/workflows/(\.index|ignition)\.yaml$)'
           SCRIPT_INPUTS: '(\.sh$|^\.github/workflows/\.index\.yaml$)'
         run: |
-          # a push or a manual run releases, so it runs the whole pipeline
+          # a push, a manual run or an auto-merge's dispatch releases, so it runs the whole pipeline
           if [ "$EVENT" != pull_request ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo "code=true" >> "$GITHUB_OUTPUT"
             echo "scripts=true" >> "$GITHUB_OUTPUT"
@@ -167,7 +170,7 @@ jobs:
       pages: write
       id-token: write
 
-  # pull requests only: on main, webpage.yaml runs on its own push trigger
+  # pull requests only: on main, webpage.yaml runs on its own push and auto-merged triggers
   webpage:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/webpage.yaml
