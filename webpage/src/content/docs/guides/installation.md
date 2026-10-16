@@ -73,7 +73,7 @@ Download the release for your platform and verify its checksum:
 <!-- x-release-please-start-version -->
 
 ```bash
-VERSION=1.2.3 # the release to install
+VERSION=1.2.4 # the release to install
 PLATFORM=linux_amd64 # for example darwin_arm64 or windows_amd64
 MIRROR="$HOME/.terraform.d/plugins/registry.opentofu.org/apollogeddon/ignition"
 

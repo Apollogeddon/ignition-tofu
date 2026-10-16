@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.4](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.3...v1.2.4) (2026-10-16)
+
+
+### Bug Fixes
+
+* **deps:** Bump the apollogeddon group across 2 directories with 1 update ([#90](https://github.com/Apollogeddon/ignition-tofu/issues/90)) ([2ff9a51](https://github.com/Apollogeddon/ignition-tofu/commit/2ff9a51b195cefdd52613b43de2803844d2ca519))
+* **resources:** Accept partial device parameters without an inconsistent result ([#96](https://github.com/Apollogeddon/ignition-tofu/issues/96)) ([e19bbf7](https://github.com/Apollogeddon/ignition-tofu/commit/e19bbf7bd48431eb1de18f927c9eef417bce0c9b))
+* Review 4 findings (request timeout, unknown provider config, cleared fields, schedule_restricted, project wait) ([#94](https://github.com/Apollogeddon/ignition-tofu/issues/94)) ([361156c](https://github.com/Apollogeddon/ignition-tofu/commit/361156c86a98ef55df25777dae0f2246562fcde0))
+* Send creates once, range-check numbers, and pass CI no secrets it doesn't need ([#89](https://github.com/Apollogeddon/ignition-tofu/issues/89)) ([a06ede7](https://github.com/Apollogeddon/ignition-tofu/commit/a06ede71e645c87067a290be7e583db88f9d57c4))
+
 ## [1.2.3](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.2...v1.2.3) (2026-10-12)
 
 
