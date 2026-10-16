@@ -75,7 +75,10 @@ func (r *DeviceResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			"parameters": schema.StringAttribute{
 				Description: "The JSON configuration parameters for the device. These vary by device type. " +
 					"Set only the ones you need: the gateway fills in its defaults for the rest, and the provider " +
-					"compares only the keys you set (nested objects key by key, lists whole), so the defaults never show as drift.",
+					"compares only the keys you set, so the defaults never show as drift. Nested objects are compared key by key, " +
+					"but a list is compared whole, so give each list element in full. After an import, state holds every setting " +
+					"and the first plan narrows this to the keys you set: that update resets any setting you leave out to its default, " +
+					"so list every setting you want to keep before you apply.",
 				Required: true,
 			},
 			"signature": schema.StringAttribute{
