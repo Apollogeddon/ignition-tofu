@@ -33,11 +33,12 @@ func (e *APIErrorResponse) Error() string {
 }
 
 type ResourceResponse[T any] struct {
-	Module      string `json:"module,omitempty"`
-	Type        string `json:"type,omitempty"`
-	Name        string `json:"name"`
-	Enabled     *bool  `json:"enabled,omitempty"`
-	Description string `json:"description,omitempty"`
+	Module  string `json:"module,omitempty"`
+	Type    string `json:"type,omitempty"`
+	Name    string `json:"name"`
+	Enabled *bool  `json:"enabled,omitempty"`
+	// sent even when empty, so a description removed from the configuration is cleared
+	Description string `json:"description"`
 	Signature   string `json:"signature,omitempty"`
 	Config      T      `json:"config"`
 }
@@ -71,10 +72,11 @@ type TagProviderConfig struct {
 }
 
 type UserSourceProfile struct {
-	Type               string `json:"type"`
-	FailoverProfile    string `json:"failoverProfile,omitempty"`
-	FailoverMode       string `json:"failoverMode,omitempty"`
-	ScheduleRestricted bool   `json:"scheduleRestricted"`
+	Type            string `json:"type"`
+	FailoverProfile string `json:"failoverProfile,omitempty"`
+	FailoverMode    string `json:"failoverMode,omitempty"`
+	// nil leaves the gateway's value
+	ScheduleRestricted *bool `json:"scheduleRestricted,omitempty"`
 }
 
 type UserSourceConfig struct {
@@ -83,17 +85,19 @@ type UserSourceConfig struct {
 
 // Project's and the audit profile's optional booleans and numbers are pointers: nil leaves
 // the gateway's value, while false or 0 is sent, which omitempty on a plain value would drop.
+// A project's strings are always sent: an update keeps fields it leaves out, so an empty
+// string is what clears one removed from the configuration.
 type Project struct {
 	Name             string `json:"name,omitempty"`
-	Description      string `json:"description,omitempty"`
-	Title            string `json:"title,omitempty"`
+	Description      string `json:"description"`
+	Title            string `json:"title"`
 	Enabled          *bool  `json:"enabled,omitempty"`
-	Parent           string `json:"parent,omitempty"`
+	Parent           string `json:"parent"`
 	Inheritable      *bool  `json:"inheritable,omitempty"`
-	DefaultDB        string `json:"defaultDb,omitempty"`
-	TagProvider      string `json:"tagProvider,omitempty"`
-	UserSource       string `json:"userSource,omitempty"`
-	IdentityProvider string `json:"identityProvider,omitempty"`
+	DefaultDB        string `json:"defaultDb"`
+	TagProvider      string `json:"tagProvider"`
+	UserSource       string `json:"userSource"`
+	IdentityProvider string `json:"identityProvider"`
 }
 
 type AuditProfileSettings struct {

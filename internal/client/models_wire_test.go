@@ -14,7 +14,7 @@ import (
 // A false or 0 the configuration asks for reaches the gateway; omitempty on a plain bool or
 // int dropped it, so a project couldn't be disabled or audit pruning turned off.
 func TestModels_SendFalseAndZero(t *testing.T) {
-	f, zero := false, 0
+	f, tr, zero := false, true, 0
 	cases := []struct {
 		name string
 		v    any
@@ -28,7 +28,13 @@ func TestModels_SendFalseAndZero(t *testing.T) {
 			Settings: AuditProfileSettings{PruneEnabled: &f, AutoCreate: &f, EnableStoreAndForward: &f},
 		}, []string{`"retentionDays":0`, `"pruneEnabled":false`, `"autoCreate":false`, `"enableStoreAndForward":false`}, nil},
 		{"audit profile unset", AuditProfileConfig{Profile: AuditProfileProfile{Type: "database"}}, nil, []string{`retentionDays`, `pruneEnabled`, `autoCreate`}},
-		{"user source", UserSourceConfig{Profile: UserSourceProfile{Type: "internal"}}, []string{`"scheduleRestricted":false`}, nil},
+		// unset leaves the gateway's schedule restriction; a known false or true is sent
+		{"user source unset", UserSourceConfig{Profile: UserSourceProfile{Type: "internal"}}, nil, []string{`scheduleRestricted`}},
+		{"user source false", UserSourceConfig{Profile: UserSourceProfile{Type: "internal", ScheduleRestricted: &f}}, []string{`"scheduleRestricted":false`}, nil},
+		{"user source true", UserSourceConfig{Profile: UserSourceProfile{Type: "internal", ScheduleRestricted: &tr}}, []string{`"scheduleRestricted":true`}, nil},
+		// an empty string clears what the configuration no longer sets, as an update keeps fields it leaves out
+		{"resource description cleared", ResourceResponse[UserSourceConfig]{Name: "u"}, []string{`"description":""`}, nil},
+		{"project strings cleared", Project{Name: "p"}, []string{`"description":""`, `"title":""`, `"parent":""`, `"defaultDb":""`, `"tagProvider":""`, `"userSource":""`, `"identityProvider":""`}, nil},
 	}
 	for _, tc := range cases {
 		b, err := json.Marshal(tc.v)
@@ -94,5 +100,53 @@ func TestClient_UpdateProjectDisables(t *testing.T) {
 	}
 	if p.Enabled == nil || *p.Enabled {
 		t.Errorf("Expected the disabled project, got %+v", p)
+	}
+}
+
+// A gateway that leaves out enabled when it is false shows the update applied, rather than
+// holding the wait for its full 10 seconds.
+func TestClient_UpdateProjectOmittedFalse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"name": "p", "title": "t"})
+	}))
+	defer server.Close()
+
+	c, _ := NewClient(server.URL, "token", false)
+	f := false
+	start := time.Now()
+	if _, err := c.UpdateProject(context.Background(), Project{Name: "p", Title: "t", Enabled: &f, Inheritable: &f}); err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("Expected the wait to end on the first read, took %s", elapsed)
+	}
+}
+
+// A cleared title isn't taken as applied while the gateway still shows the old one.
+func TestClient_UpdateProjectWaitsForClearedField(t *testing.T) {
+	var gets int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			return
+		}
+		gets++
+		title := ""
+		if gets <= 2 {
+			title = "old"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"name": "p", "title": title})
+	}))
+	defer server.Close()
+
+	c, _ := NewClient(server.URL, "token", false)
+	p, err := c.UpdateProject(context.Background(), Project{Name: "p"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Title != "" {
+		t.Errorf("Expected the cleared title, got %q", p.Title)
 	}
 }

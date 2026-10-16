@@ -149,6 +149,10 @@ func (r *DeviceResource) MapClientToState(ctx context.Context, name string, conf
 
 func (r *DeviceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data DeviceResourceModel
+	if r.generic.Client == nil {
+		base.AddUnconfiguredError(&resp.Diagnostics)
+		return
+	}
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
@@ -212,7 +216,7 @@ func (r *DeviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if data.Name.ValueString() == "" {
+	if data.Name.ValueString() == "" || base.Unconfigured(r.generic.Client, &resp.Diagnostics) {
 		return
 	}
 
@@ -251,6 +255,10 @@ func (r *DeviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 func (r *DeviceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data DeviceResourceModel
+	if r.generic.Client == nil {
+		base.AddUnconfiguredError(&resp.Diagnostics)
+		return
+	}
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {

@@ -3,15 +3,18 @@ package provider
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/datasources"
 	"github.com/apollogeddon/ignition-tofu/internal/provider/resources"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -32,7 +35,11 @@ type IgnitionProviderModel struct {
 	Host             types.String `tfsdk:"host"`
 	Token            types.String `tfsdk:"token"`
 	AllowInsecureTLS types.Bool   `tfsdk:"allow_insecure_tls"`
+	RequestTimeout   types.Int64  `tfsdk:"request_timeout"`
 }
+
+// maxRequestTimeout is an hour: past that a plan waiting on a gateway is a hang, not a retry.
+const maxRequestTimeout = 3600
 
 func (p *IgnitionProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "ignition"
@@ -56,6 +63,16 @@ func (p *IgnitionProvider) Schema(ctx context.Context, req provider.SchemaReques
 				Description: "Whether to allow insecure TLS connections (e.g., self-signed certs).",
 				Optional:    true,
 			},
+			"request_timeout": schema.Int64Attribute{
+				Description: "The longest one request to the gateway may take, in seconds, including its retries and the waits between them: " +
+					"a gateway that is down or answering with errors fails the plan after this rather than after every retry. " +
+					"From 1 to 3600; defaults to 60; raise it for a slow host or a gateway whose modules take longer to restart. " +
+					"Each attempt also has a timeout of its own of 10 seconds.",
+				Optional: true,
+				Validators: []validator.Int64{
+					int64validator.Between(1, maxRequestTimeout),
+				},
+			},
 		},
 	}
 }
@@ -69,23 +86,30 @@ func (p *IgnitionProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	if data.Host.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("host"),
-			"Unknown Host",
-			"The provider host cannot be unknown. Please verify your Terraform configuration.",
-		)
+	// A value another resource sets is unknown until apply. A client that can defer plans the
+	// provider's resources once it is known. Otherwise (OpenTofu) it's an error: planning
+	// without the gateway would keep existing resources' state unrefreshed, so a gateway
+	// replaced in the same run would silently lack them, and Configure can't see the state
+	// to tell a first create from that.
+	unknown := map[string]bool{
+		"host":               data.Host.IsUnknown(),
+		"token":              data.Token.IsUnknown(),
+		"allow_insecure_tls": data.AllowInsecureTLS.IsUnknown(),
+		"request_timeout":    data.RequestTimeout.IsUnknown(),
 	}
-
-	if data.Token.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("token"),
-			"Unknown Token",
-			"The provider token cannot be unknown. Please verify your Terraform configuration.",
-		)
-	}
-
-	if resp.Diagnostics.HasError() {
+	if unknown["host"] || unknown["token"] || unknown["allow_insecure_tls"] || unknown["request_timeout"] {
+		if req.ClientCapabilities.DeferralAllowed {
+			resp.Deferred = &provider.Deferred{Reason: provider.DeferredReasonProviderConfigUnknown}
+			return
+		}
+		for _, name := range []string{"host", "token", "allow_insecure_tls", "request_timeout"} {
+			if unknown[name] {
+				resp.Diagnostics.AddAttributeError(path.Root(name), "Provider configuration not known until apply",
+					"The provider's "+name+" comes from a value that is only known after apply, and this client can't defer "+
+						"the provider until then. Apply what sets it first (for example tofu apply -target=<that resource>), "+
+						"or set it from a value known at plan time.")
+			}
+		}
 		return
 	}
 
@@ -127,7 +151,12 @@ func (p *IgnitionProvider) Configure(ctx context.Context, req provider.Configure
 	if p.client != nil {
 		apiClient = p.client
 	} else {
-		apiClient, err = client.NewClient(host, token, allowInsecure)
+		var c *client.Client
+		c, err = client.NewClient(host, token, allowInsecure)
+		if err == nil && !data.RequestTimeout.IsNull() {
+			c.RequestTimeout = time.Duration(data.RequestTimeout.ValueInt64()) * time.Second
+		}
+		apiClient = c
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Unable to Create Ignition API Client",

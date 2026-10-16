@@ -38,12 +38,21 @@ func TestAccProjectResource(t *testing.T) {
 					resource.TestCheckResourceAttr("ignition_project.test", "enabled", "false"),
 					resource.TestCheckResourceAttr("ignition_project.test", "inheritable", "false"),
 					resource.TestCheckResourceAttr("ignition_project.test", "description", "updated by the acceptance test"),
+					resource.TestCheckResourceAttr("ignition_project.test", "title", "Acceptance"),
 				),
 			},
 			{
 				ResourceName:      "ignition_project.test",
 				ImportState:       true,
 				ImportStateVerify: true,
+			},
+			// fields removed from the configuration are cleared on the gateway
+			{
+				Config: testAccProjectResourceConfig(rName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("ignition_project.test", "description"),
+					resource.TestCheckNoResourceAttr("ignition_project.test", "title"),
+				),
 			},
 		},
 	})
@@ -66,6 +75,7 @@ provider "ignition" {}
 resource "ignition_project" "test" {
   name        = %[1]q
   description = "updated by the acceptance test"
+  title       = "Acceptance"
   enabled     = false
   inheritable = false
 }

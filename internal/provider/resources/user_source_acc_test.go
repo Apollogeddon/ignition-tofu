@@ -39,6 +39,39 @@ func TestAccUserSourceResource(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 			},
+			// a description removed from the configuration is cleared on the gateway, and a
+			// schedule restriction left out keeps the gateway's value
+			{
+				Config: fmt.Sprintf(`
+provider "ignition" {}
+
+resource "ignition_user_source" "test" {
+  name                = %[1]q
+  type                = "INTERNAL"
+  schedule_restricted = true
+}
+`, rName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("ignition_user_source.test", "description"),
+					resource.TestCheckResourceAttr("ignition_user_source.test", "schedule_restricted", "true"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+provider "ignition" {}
+
+resource "ignition_user_source" "test" {
+  name = %[1]q
+  type = "INTERNAL"
+}
+`, rName),
+				Check: resource.TestCheckResourceAttr("ignition_user_source.test", "schedule_restricted", "true"),
+			},
+			{
+				ResourceName:      "ignition_user_source.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

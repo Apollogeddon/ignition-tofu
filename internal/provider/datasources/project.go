@@ -111,6 +111,10 @@ func (d *ProjectDataSource) Configure(ctx context.Context, req datasource.Config
 }
 
 func (d *ProjectDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	if d.client == nil {
+		base.AddUnconfiguredError(&resp.Diagnostics)
+		return
+	}
 	var data ProjectDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {

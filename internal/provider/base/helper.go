@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/apollogeddon/ignition-tofu/internal/client"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -40,7 +41,27 @@ type GenericIgnitionResource[T any, M any] struct {
 	DeleteFunc func(context.Context, string, string) error
 }
 
+// AddUnconfiguredError reports a call that needs the gateway while the provider has no
+// client, because its configuration wasn't known when it was configured.
+func AddUnconfiguredError(diags *diag.Diagnostics) {
+	diags.AddError("Provider not configured",
+		"The provider has no connection to the gateway: its configuration failed or wasn't known when it was configured.")
+}
+
+// Unconfigured reports, as an error, a call that needs the gateway while the provider has no client.
+func Unconfigured(c client.IgnitionClient, diags *diag.Diagnostics) bool {
+	if c != nil {
+		return false
+	}
+	AddUnconfiguredError(diags)
+	return true
+}
+
 func (r *GenericIgnitionResource[T, M]) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse, data *M, baseModel *BaseResourceModel) {
+	if r.Client == nil {
+		AddUnconfiguredError(&resp.Diagnostics)
+		return
+	}
 	resp.Diagnostics.Append(req.Plan.Get(ctx, data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -100,7 +121,7 @@ func (r *GenericIgnitionResource[T, M]) Read(ctx context.Context, req resource.R
 		return
 	}
 
-	if baseModel.Name.ValueString() == "" {
+	if baseModel.Name.ValueString() == "" || Unconfigured(r.Client, &resp.Diagnostics) {
 		return
 	}
 
@@ -143,6 +164,10 @@ func HandleReadError(ctx context.Context, resp *resource.ReadResponse, err error
 }
 
 func (r *GenericIgnitionResource[T, M]) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse, data *M, baseModel *BaseResourceModel) {
+	if r.Client == nil {
+		AddUnconfiguredError(&resp.Diagnostics)
+		return
+	}
 	resp.Diagnostics.Append(req.Plan.Get(ctx, data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -220,6 +245,10 @@ func (r *GenericIgnitionResource[T, M]) Update(ctx context.Context, req resource
 }
 
 func (r *GenericIgnitionResource[T, M]) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse, data *M, baseModel *BaseResourceModel) {
+	if r.Client == nil {
+		AddUnconfiguredError(&resp.Diagnostics)
+		return
+	}
 	resp.Diagnostics.Append(req.State.Get(ctx, data)...)
 	if resp.Diagnostics.HasError() {
 		return
