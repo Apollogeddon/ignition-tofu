@@ -4,18 +4,21 @@ This repository uses GitHub Actions to test the provider, check its quality, bui
 
 ## Index workflow
 
-The [`.index.yaml`](./workflows/.index.yaml) workflow runs on every pull request, and on pushes to `main` that change the provider's code, its tooling, the test gateway (`docker-compose.yml`, `bootstrap/` and its seed backup in `assets/`) or the workflows that test and release it. It runs these jobs:
+Every run starts from [`.index.yml`](./workflows/.index.yml) (`index`), on a pull request, a push to `main`, a manual run, the `auto-merged` dispatch the merge pipeline sends after merging a Dependabot pull request, and a weekly schedule. Each of its jobs calls one pipeline, so the run page reads `<pipeline> / <stage>`:
 
-1. **Changes**: on a pull request, works out whether the provider, its tooling or those workflows changed, and whether any shell script changed. A push or a manual run always runs the whole pipeline.
-2. **shellcheck**: lints every shell script when a script changed.
-3. **Testing and Trivy**: forgego's reusable `testing.yml` and a Trivy scan, in parallel, when the provider changed.
-4. **Ignition**: starts a real Ignition gateway with Docker Compose and runs the acceptance tests against it, after testing and Trivy pass.
-5. **Release**: on `main` only, after every previous check passes (see [Release process](#release-process)).
-6. **Release webpage**: when a release was published, rebuilds and deploys the documentation site, so its provider mirror lists the new release.
-7. **Webpage**: on a pull request, the documentation site's checks and build (see [Documentation](#documentation)).
-8. **Auto-merge**: merges a Dependabot pull request through forgego's `merge.yml`, once every job above has passed or been skipped.
+| Job | Pipeline | Stages | When |
+| :--- | :--- | :--- | :--- |
+| `changes` | | | Every run but the weekly one: on a pull request, works out whether the provider's code, its tooling, a shell script or a workflow changed. Every other run checks everything. |
+| `version` | forgego's [`version.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/version.yml) | `release` | On `main` (see [Release process](#release-process)). |
+| `provider` | [`provider.yml`](./workflows/provider.yml) | `lint`, `scan`, `test`, `test (gateway)`, `build` | On a pull request when the provider changed, and on `main` when `version` created a release. |
+| `publish` | forgego's [`publish.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/publish.yml) | `assets` | When a release was created and `provider` passed. |
+| `website` | forgejs's [`website.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/website.yml) | `lint`, `scan`, `build`, `check`, and this repository's `lint (markdown)` | Every run but the weekly one; after a release, once `publish` has attached its files (see [Documentation](#documentation)). |
+| `pages` | forgejs's [`pages.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/pages.yml) | `deploy` | On `main`, once `website` passed. |
+| `patch (provider)` | forgego's [`patch.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/patch.yml) | `update` | Weekly, on a manual run and after a Dependabot merge: refreshes the files forgego manages and upgrades the modules govulncheck reports as vulnerable, committing to `main`. |
+| `patch (webpage)` | forgejs's [`patch.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/patch.yml) | `update` | After `patch (provider)`: commits OSV-Scanner's security patches to the site's dependencies. |
+| `merge` | forgego's [`merge.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/merge.yml) | `review`, `squash` | A Dependabot pull request: requests a review, and squash-merges it once every check above has passed or been skipped. |
 
-A new push to a pull request cancels its previous run. On `main`, the documentation site runs from its own push trigger.
+A new push to a pull request cancels its previous run. A run on `main` is never cancelled, so a release is never created without being published. The forge pipelines are called at `@ci-v2` until the forges switch to the new pipelines, then at `@main`.
 
 ## Quality and testing
 
@@ -40,18 +43,17 @@ go tool -modfile=.forgego/task/go.mod task <name>
 
 The git hooks format staged Go files, check that forgego's files are current and run shellcheck on staged scripts (when it is installed) before a commit, lint before a push, and check commit messages against Conventional Commits.
 
-forgego's [`testing.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/testing.yml) runs:
+[`provider.yml`](./workflows/provider.yml) runs:
 
-- **Quality**: `go mod tidy -diff`, the golangci-lint format check and lint (forgego's base configuration merged with `.golangci.local.yml` into `.golangci.yml`), a check that forgego's files are current, govulncheck and OSV-Scanner (`osv-scanner.toml` lists the findings accepted until a set date, each with its reason).
-- **Unit tests**: `task test`.
-- **Build**: `task build`.
-- **Patch**: on `main`, upgrades modules that govulncheck reports as vulnerable and commits the fix.
-
-**Trivy** scans the repository's Go modules for known vulnerabilities and fails on high or critical ones.
+- **lint**: a check that forgego's files are current (on a Dependabot pull request, they are refreshed instead, and the patch pipeline commits them), `go mod tidy -diff`, the golangci-lint format check and lint (forgego's base configuration merged with `.golangci.local.yml` into `.golangci.yml`), and shellcheck on every shell script.
+- **scan**: OSV-Scanner (`osv-scanner.toml` lists the findings accepted until a set date, each with its reason; a high or critical finding fails a pull request and is annotated elsewhere), govulncheck, and Trivy on the provider's Go modules, which fails on high or critical vulnerabilities.
+- **test**: `task test`.
+- **test (gateway)**: the acceptance tests (see [Acceptance tests](#acceptance-tests)).
+- **build**: `task build`.
 
 ## Acceptance tests
 
-The [`ignition.yaml`](./workflows/ignition.yaml) workflow tests the provider against a real gateway:
+The `provider / test (gateway)` stage tests the provider against a real gateway:
 
 - **Gateway**: starts an Ignition 8.3.10 gateway (the image `bootstrap/Dockerfile` pins) from `docker-compose.yml`, which restores the seed backup in `assets/ignition.gwbk`.
 - **Readiness**: waits until the gateway responds.
@@ -61,24 +63,22 @@ The unit tests, the acceptance tests and the documentation build all use the Ope
 
 ## Release process
 
-The **Release** job calls [forgego](https://github.com/apollogeddon/forgego)'s [`service.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/service.yml) with `run_checks: false`, as the checks and the acceptance tests above have already passed:
-
-- **Version**: forgego's release-please manages version bumps and `CHANGELOG.md` from Conventional Commits, and requests a review of the release pull request it opens.
-- **Release**: when a release was created, GoReleaser builds the provider in the layout the Terraform Registry expects (`.goreleaser.yaml`): a zip per platform, a `SHA256SUMS` file signed with the release GPG key, and the provider manifest (`terraform-registry-manifest.json`). With `gpg_sign: true`, forgego imports the key from the `GPG_PRIVATE_KEY` secret (its passphrase is the `PASSPHRASE` secret) and exports its fingerprint as `GPG_FINGERPRINT`, which the `signs` section of `.goreleaser.yaml` reads.
-
-The **Release webpage** job then rebuilds and deploys the documentation site, so its provider mirror lists the new release.
+- **Version**: `version / release` runs forgego's release-please, which manages version bumps and `CHANGELOG.md` from Conventional Commits, and requests a review of the release pull request it opens. When that pull request merges, it creates the release as a draft.
+- **Checks**: the `provider` pipeline runs again on the release.
+- **Publish**: `publish / assets` runs GoReleaser, which builds the provider in the layout the Terraform Registry expects (`.goreleaser.yaml`): a zip per platform, a `SHA256SUMS` file signed with the release GPG key, and the provider manifest (`terraform-registry-manifest.json`). With `gpg_sign: true`, forgego imports the key from the `GPG_PRIVATE_KEY` secret (its passphrase is the `PASSPHRASE` secret) and exports its fingerprint as `GPG_FINGERPRINT`, which the `signs` section of `.goreleaser.yaml` reads.
+- **Site**: `website` then rebuilds the documentation site, and `pages` deploys it, so its provider mirror lists the new release.
 
 release-please creates each release as a draft; GoReleaser attaches the files and then publishes it, so the flow also works with immutable releases. Releases are published on GitHub only: the provider is not yet listed on the OpenTofu or Terraform registry. To try the build locally, run `task release:snapshot`, which skips signing.
 
 ## Documentation
 
-The [`webpage.yaml`](./workflows/webpage.yaml) workflow builds and deploys the [Astro](https://astro.build/) documentation site in `webpage/`. It calls [forgejs](https://github.com/apollogeddon/forgejs)'s [`website.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/website.yml) with `working_directory: webpage`, after its own Markdown job:
+The `website` pipeline builds the [Astro](https://astro.build/) documentation site in `webpage/` with forgejs's [`website.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/website.yml) and `working_directory: webpage`:
 
-- **Markdown**: lints every Markdown file in the repository with `markdownlint-cli2`.
+- **lint (markdown)**: a stage of this repository's own, in `.index.yml`, which lints every Markdown file in the repository with `markdownlint-cli2`.
 - **Generated content**: before each install, forgejs installs Go from `go.mod` and runs the pre-build command, which generates the provider reference with `tfplugindocs` from the schema OpenTofu reports and from `examples/`, copies it into the site with `migrate-docs.sh`, and writes the provider network mirror (`generate-mirror.sh`) from the releases.
-- **Quality**: Gitleaks over the whole repository, OSV-Scanner on the site's dependencies, Biome and the type check.
-- **Build**: builds the site, then checks its internal links with lychee and every page against WCAG 2.2 A and AA with axe. The build also runs on pull requests, so a broken or inaccessible site fails the pull request.
-- **Deploy**: on `main`, publishes the site to GitHub Pages, and commits OSV-Scanner's security patches to the site's dependencies.
+- **lint** and **scan**: Biome and the type check; Gitleaks over the whole repository and OSV-Scanner on the site's dependencies.
+- **build** and **check**: builds the site, then checks its internal links with lychee and every page against WCAG 2.2 A and AA with axe, so a broken or inaccessible site fails the pull request.
+- **Deploy**: on `main`, `pages / deploy` publishes the site to GitHub Pages.
 
 ## Configuration
 
