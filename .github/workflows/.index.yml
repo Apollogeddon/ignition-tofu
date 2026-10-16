@@ -62,7 +62,7 @@ jobs:
   # the release as a draft when it merges (.github/release.json)
   version:
     if: github.event_name != 'pull_request' && github.event_name != 'schedule'
-    uses: apollogeddon/forgego/.github/workflows/version.yml@ci-v2
+    uses: apollogeddon/forgego/.github/workflows/version.yml@main
     permissions:
       contents: write
       pull-requests: write
@@ -86,7 +86,7 @@ jobs:
     if: >-
       ${{ !cancelled() && needs.provider.result == 'success' &&
       needs.version.outputs.new_release_published == 'true' }}
-    uses: apollogeddon/forgego/.github/workflows/publish.yml@ci-v2
+    uses: apollogeddon/forgego/.github/workflows/publish.yml@main
     permissions:
       contents: write
     with:
@@ -106,7 +106,7 @@ jobs:
     if: >-
       ${{ !cancelled() && github.event_name != 'schedule' &&
       needs.version.result != 'failure' && needs.publish.result != 'failure' }}
-    uses: apollogeddon/forgejs/.github/workflows/website.yml@ci-v2
+    uses: apollogeddon/forgejs/.github/workflows/website.yml@main
     permissions:
       contents: read
       packages: read
@@ -165,7 +165,7 @@ jobs:
     if: >-
       ${{ !cancelled() && needs.website.result == 'success' && needs.website-lint-markdown.result == 'success' &&
       github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
-    uses: apollogeddon/forgejs/.github/workflows/pages.yml@ci-v2
+    uses: apollogeddon/forgejs/.github/workflows/pages.yml@main
     permissions:
       pages: write
       id-token: write
@@ -175,7 +175,7 @@ jobs:
   patch-provider:
     name: patch (provider)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'
-    uses: apollogeddon/forgego/.github/workflows/patch.yml@ci-v2
+    uses: apollogeddon/forgego/.github/workflows/patch.yml@main
     permissions:
       contents: write
 
@@ -186,7 +186,7 @@ jobs:
     if: >-
       ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
       github.event_name == 'repository_dispatch') }}
-    uses: apollogeddon/forgejs/.github/workflows/patch.yml@ci-v2
+    uses: apollogeddon/forgejs/.github/workflows/patch.yml@main
     permissions:
       contents: write
       packages: read
@@ -197,7 +197,7 @@ jobs:
   merge:
     needs: [changes, provider, website, website-lint-markdown]
     if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' }}
-    uses: apollogeddon/forgego/.github/workflows/merge.yml@ci-v2
+    uses: apollogeddon/forgego/.github/workflows/merge.yml@main
     permissions:
       contents: write
       pull-requests: write
