@@ -1,0 +1,270 @@
+name: provider
+
+# The provider's checks: lint (Go and shell), scan (OSV, govulncheck and Trivy), the unit tests, the
+# acceptance tests against a real Ignition gateway, and the build. forgego's publish.yml ships a release.
+
+on:
+  workflow_call:
+    inputs:
+      runs_on:
+        description: "Runner label for every job; the gateway test needs Docker"
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            .forgego/*/go.sum
+      - name: Check forgego's files are current
+        if: github.actor != 'dependabot[bot]'
+        run: go tool -modfile=.forgego/task/go.mod task sync-check
+      # a Dependabot bump of forgego changes the files it manages: lint against them refreshed, and the
+      # patch pipeline commits them
+      - name: Refresh forgego's files
+        if: github.actor == 'dependabot[bot]'
+        run: go tool -modfile=.forgego/task/go.mod task sync
+      - name: Check go.mod is tidy
+        run: go mod tidy -diff
+      - name: Check formatting
+        run: go tool -modfile=.forgego/golangci-lint/go.mod golangci-lint fmt --diff
+      - name: Lint
+        run: go tool -modfile=.forgego/golangci-lint/go.mod golangci-lint run
+      # pinned, as the runner's shellcheck version changes what it reports
+      - name: Install shellcheck
+        env:
+          VERSION: v0.11.0
+        run: |
+          curl -sSfL "https://github.com/koalaman/shellcheck/releases/download/$VERSION/shellcheck-$VERSION.linux.x86_64.tar.xz" \
+            | tar -xJ -C "$RUNNER_TEMP" --strip-components=1 "shellcheck-$VERSION/shellcheck"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      # the examples' import.sh files are command lines the provider docs show, not scripts
+      - name: Lint the scripts
+        run: git ls-files -z '*.sh' ':!:examples/**/import.sh' | xargs -0 shellcheck
+
+  # Gitleaks runs in the website pipeline, over the whole repository
+  scan:
+    name: scan
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # A high or critical finding (CVSS 7 or more) fails a pull request; elsewhere it's annotated
+      # instead, so releases and the patch pipeline that fixes it still run. osv-scanner.toml lists
+      # the findings accepted until a set date
+      - name: Scan with OSV
+        id: osv
+        run: |
+          curl -sL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o "$RUNNER_TEMP/osv-scanner"
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+          # 0: nothing found, 1: vulnerabilities found, 128: no lockfile, anything else: no scan
+          status=0
+          "$RUNNER_TEMP/osv-scanner" scan source -r --format json --output-file "$RUNNER_TEMP/osv.json" . || status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          rm "$RUNNER_TEMP/osv-scanner"
+      - name: Report OSV findings
+        uses: actions/github-script@v9
+        env:
+          OSV_STATUS: ${{ steps.osv.outputs.status }}
+          OSV_REPORT: ${{ runner.temp }}/osv.json
+          OSV_ENFORCE: ${{ github.event_name == 'pull_request' }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const status = Number(process.env.OSV_STATUS);
+            if (status === 128) {
+              core.info('No lockfiles to scan');
+              return;
+            }
+            if ((status !== 0 && status !== 1) || !fs.existsSync(process.env.OSV_REPORT)) {
+              core.warning(`OSV-Scanner couldn't finish (exit ${status}), so dependencies weren't checked; see the scan step's log`, { title: 'OSV scan incomplete' });
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync(process.env.OSV_REPORT, 'utf8'));
+            // a GitHub advisory's rating when an advisory has no CVSS score
+            const ratings = { CRITICAL: 9, HIGH: 7, MODERATE: 4, MEDIUM: 4, LOW: 1 };
+            const rows = [];
+            let blocking = 0;
+            for (const result of report.results ?? []) {
+              const file = path.relative(process.env.GITHUB_WORKSPACE, result.source.path);
+              for (const { package: pkg, vulnerabilities = [], groups = [] } of result.packages ?? []) {
+                for (const group of groups) {
+                  const vulns = vulnerabilities.filter((v) => group.ids.includes(v.id));
+                  let score = Number.parseFloat(group.max_severity);
+                  if (Number.isNaN(score)) {
+                    score = Math.max(0, ...vulns.map((v) => ratings[String(v.database_specific?.severity).toUpperCase()] ?? 0));
+                  }
+                  const high = score >= 7;
+                  const message = `${pkg.name} ${pkg.version}: ${group.ids.join(', ')} ${vulns[0]?.summary ?? ''} (severity ${score || 'unknown'})`;
+                  if (high) {
+                    blocking++;
+                    core.error(message, { title: 'High or critical vulnerability', file });
+                  } else {
+                    core.warning(message, { title: 'Vulnerability', file });
+                  }
+                  rows.push([file, `${pkg.name} ${pkg.version}`, group.ids.join(', '), String(score || 'unknown')]);
+                }
+              }
+            }
+            if (rows.length) {
+              await core.summary
+                .addHeading('OSV-Scanner findings', 3)
+                .addTable([['Lockfile', 'Package', 'Advisories', 'Severity'], ...rows])
+                .write();
+            }
+            const found = `${blocking} high or critical ${blocking === 1 ? 'vulnerability' : 'vulnerabilities'}`;
+            if (blocking && process.env.OSV_ENFORCE === 'true') {
+              core.setFailed(`${found}: update the packages, or record an accepted one in osv-scanner.toml`);
+            } else if (blocking) {
+              core.warning(`${found}: this fails pull requests until they're updated, as the patch pipeline may do`, { title: 'OSV scan' });
+            } else {
+              core.info(`${rows.length} found, none high or critical`);
+            }
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            .forgego/*/go.sum
+      # Reports only the vulnerabilities the code actually calls. It doesn't fail the checks, as the
+      # patch pipeline upgrades the vulnerable modules
+      - name: Scan with govulncheck
+        run: |
+          go tool -modfile=.forgego/govulncheck/go.mod govulncheck ./... ||
+            echo "::warning::govulncheck found vulnerabilities the code calls; the patch pipeline upgrades them on main"
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: '1'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          # the provider's own modules: .forgego/ pins dev tools that never ship, and the website
+          # pipeline checks the site's dependencies
+          skip-dirs: '.forgego,webpage'
+
+  test:
+    name: test
+    needs: [lint, scan]
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            .forgego/*/go.sum
+      # with the race detector and coverage, against the OpenTofu install-tofu.sh pins
+      - name: Test
+        run: go tool -modfile=.forgego/task/go.mod task test
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-provider
+          path: |
+            coverage.out
+            junit-report.xml
+          if-no-files-found: ignore
+
+  # The acceptance tests: a real Ignition gateway from docker-compose.yml, restored from the seed
+  # backup in assets/, and every resource created, read, updated and deleted through its API
+  test-gateway:
+    name: test (gateway)
+    needs: [lint, scan]
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      IGNITION_HOST: "http://localhost:8088"
+      # the seed backup's API token, for a gateway that only ever runs in this job
+      IGNITION_TOKEN: "terraform:bNxwTt2cyiFUwWFliYY6Fc5flj-AcdqCjfNqn_-Lw8A"
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            .forgego/*/go.sum
+      - name: Install OpenTofu
+        run: .github/scripts/install-tofu.sh
+      - name: Start the gateway
+        run: sh .github/scripts/ci/start-ignition.sh
+      - name: Check the gateway's API
+        continue-on-error: true
+        run: |
+          curl -v -H "X-Ignition-API-Token: $IGNITION_TOKEN" "$IGNITION_HOST/system/gwinfo"
+          curl -v -H "X-Ignition-API-Token: $IGNITION_TOKEN" "$IGNITION_HOST/data/api/v1/projects"
+      - name: Test
+        run: go tool -modfile=.forgego/task/go.mod task test:acc
+
+  build:
+    name: build
+    # only needs the lint and scan to pass, so it runs alongside the tests
+    needs: [lint, scan]
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            .forgego/*/go.sum
+      - name: Build
+        run: go tool -modfile=.forgego/task/go.mod task build
+      # named apart from the website's dist, which the pages pipeline deploys
+      - name: Upload the build
+        uses: actions/upload-artifact@v7
+        with:
+          name: provider
+          path: dist
+          if-no-files-found: error

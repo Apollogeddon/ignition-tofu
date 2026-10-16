@@ -1,0 +1,205 @@
+name: index
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # sent by the merge pipeline, as a merge it makes starts no push run on main
+  repository_dispatch:
+    types: [auto-merged]
+  # weekly, for the patch pipelines; a manual run or a merge's dispatch patches too
+  schedule:
+    - cron: '23 3 * * 1'
+
+# A pull request's newer run replaces its older one; every other run has a group of its own, so a run on
+# main, running or queued, is never cancelled and a release is never created without being published.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+# each job asks for what it needs
+permissions:
+  contents: read
+
+# Each job calls one pipeline, or is a stage of one, so the run page reads <pipeline> / <stage>. Pull
+# requests run the checks; main runs version, and on a release checks the provider again before GoReleaser
+# publishes it, then rebuilds the site so its provider mirror lists the release.
+jobs:
+  # What a pull request needs: the provider's pipeline when its code, its tooling, a script or a workflow
+  # changed. The website runs on every pull request. Every other run checks everything.
+  changes:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      provider: ${{ steps.diff.outputs.provider }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Find what changed
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          PROVIDER: '^(go\.(mod|sum)$|main\.go$|internal/|\.forgego/|\.golangci.*\.yml$|Taskfile\.yml$|docker-compose\.yml$|bootstrap/|assets/|osv-scanner\.toml$|\.goreleaser\.yaml$|terraform-registry-manifest\.json$|\.github/workflows/)|\.sh$'
+        run: |
+          if [ "$EVENT" != pull_request ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "provider=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only "$BASE" HEAD)
+          printf '%s\n' "$files"
+          if printf '%s\n' "$files" | grep -qE "$PROVIDER"; then provider=true; else provider=false; fi
+          echo "provider=$provider" | tee -a "$GITHUB_OUTPUT"
+
+  # release-please, on main: opens or updates the release pull request, asks for its review, and creates
+  # the release as a draft when it merges (.github/release.json)
+  version:
+    if: github.event_name != 'pull_request' && github.event_name != 'schedule'
+    uses: apollogeddon/forgego/.github/workflows/version.yml@main
+    permissions:
+      contents: write
+      pull-requests: write
+
+  # The provider's lint, scan, unit tests, acceptance tests against a real gateway and build: on a pull
+  # request, and on main a release's; a release pull request only bumps the version and changelog
+  provider:
+    needs: [changes, version]
+    if: >-
+      ${{ !cancelled() && needs.changes.outputs.provider == 'true' &&
+      ((github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')) ||
+      needs.version.outputs.new_release_published == 'true') }}
+    uses: ./.github/workflows/provider.yml
+    permissions:
+      contents: read
+
+  # GoReleaser builds the provider in the layout the Terraform Registry expects (.goreleaser.yaml), signs
+  # SHA256SUMS with the release GPG key, attaches the files to release-please's draft and publishes it
+  publish:
+    needs: [version, provider]
+    if: >-
+      ${{ !cancelled() && needs.provider.result == 'success' &&
+      needs.version.outputs.new_release_published == 'true' }}
+    uses: apollogeddon/forgego/.github/workflows/publish.yml@main
+    permissions:
+      contents: write
+    with:
+      tag_name: ${{ needs.version.outputs.tag_name }}
+      gpg_sign: true
+    secrets:
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.PASSPHRASE }}
+
+  # forgejs's website pipeline for the documentation site: Gitleaks over the whole repository, OSV-Scanner,
+  # Biome, the type check and the build, then its internal links with lychee and every page in the sitemap
+  # against WCAG 2.2 A and AA with axe. Before each install it generates the provider reference from the
+  # provider's schema, and the provider network mirror the site serves at /providers/ from the releases, so
+  # after a release it waits for publish to attach the release's files.
+  website:
+    needs: [version, publish]
+    if: >-
+      ${{ !cancelled() && github.event_name != 'schedule' &&
+      needs.version.result != 'failure' && needs.publish.result != 'failure' }}
+    uses: apollogeddon/forgejs/.github/workflows/website.yml@main
+    permissions:
+      contents: read
+      packages: read
+      # Gitleaks comments on the pull request when it finds a secret
+      pull-requests: write
+    with:
+      working_directory: webpage
+      run_tests: false
+      # served under its GitHub Pages path
+      base_path: /ignition-tofu/
+      check_links: true
+      check_accessibility: true
+      setup_go: go.mod
+      pre_build_command: |
+        cd ..
+        bash .github/scripts/ci/generate-docs.sh
+        bash .github/scripts/ci/migrate-docs.sh
+        bash .github/scripts/ci/generate-mirror.sh
+    secrets:
+      # generate-mirror.sh lists the releases and downloads their SHA256SUMS
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # A website stage of the repository's own: every Markdown file in it, which no forge pipeline lints
+  website-lint-markdown:
+    name: website / lint (markdown)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # the root tooling installs @apollogeddon/forgejs from GitHub Packages
+      packages: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: webpage/.nvmrc
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@apollogeddon"
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Lint
+        run: npx markdownlint-cli2 "**/*.{md,mdx}"
+
+  # Every run on main deploys the site, whether or not it made a release, as a docs change makes none
+  pages:
+    needs: [website, website-lint-markdown]
+    if: >-
+      ${{ !cancelled() && needs.website.result == 'success' && needs.website-lint-markdown.result == 'success' &&
+      github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    uses: apollogeddon/forgejs/.github/workflows/pages.yml@main
+    permissions:
+      pages: write
+      id-token: write
+
+  # Weekly, by hand, or after a merge's dispatch: forgego's files refreshed and the modules govulncheck
+  # finds vulnerable upgraded on main
+  patch-provider:
+    name: patch (provider)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'
+    uses: apollogeddon/forgego/.github/workflows/patch.yml@main
+    permissions:
+      contents: write
+
+  # the site's vulnerable npm dependencies, after the provider's patch so the two never push at once
+  patch-webpage:
+    name: patch (webpage)
+    needs: patch-provider
+    if: >-
+      ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'repository_dispatch') }}
+    uses: apollogeddon/forgejs/.github/workflows/patch.yml@main
+    permissions:
+      contents: write
+      packages: read
+    with:
+      working_directory: webpage
+
+  # Dependabot's pull requests: a review request, and a squash merge once every check above passed
+  merge:
+    needs: [changes, provider, website, website-lint-markdown]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' }}
+    uses: apollogeddon/forgego/.github/workflows/merge.yml@main
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      checks_passed: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
