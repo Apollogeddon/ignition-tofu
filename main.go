@@ -12,7 +12,7 @@ import (
 //go:generate bash .github/scripts/ci/generate-docs.sh
 
 // these will be set by the linker
-var version = "1.2.3" // x-release-please-version
+var version = "1.2.4" // x-release-please-version
 
 func main() {
 	var debug bool
