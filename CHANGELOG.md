@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.5](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.4...v1.2.5) (2026-10-16)
+
+
+### Bug Fixes
+
+* **deps:** Bump the apollogeddon group across 2 directories with 1 update ([#100](https://github.com/Apollogeddon/ignition-tofu/issues/100)) ([ecbcdaf](https://github.com/Apollogeddon/ignition-tofu/commit/ecbcdaff769aee04bdb68642b05a16e447caae65))
+
 ## [1.2.4](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.3...v1.2.4) (2026-10-16)
 
 
