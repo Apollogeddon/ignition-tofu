@@ -22,7 +22,7 @@
 
 `ignition` is an [OpenTofu](https://opentofu.org/) and Terraform provider that configures Ignition 8.3 gateways through the gateway's REST API. Use it to keep projects, database connections, tag providers, security settings, redundancy and Gateway Network settings in version control alongside the rest of your infrastructure.
 
-The provider is developed and tested with OpenTofu. It uses plugin protocol 6, so Terraform 1.0 and later can also load it.
+The provider is developed and tested with OpenTofu, and Terraform can also load it.
 
 ## Features
 
@@ -33,7 +33,7 @@ The provider is developed and tested with OpenTofu. It uses plugin protocol 6, s
 
 ## Requirements
 
-- OpenTofu 1.6 or later, or Terraform 1.0 or later
+- OpenTofu or Terraform
 - An Ignition gateway, version 8.3 or later (the REST API this provider uses was introduced in 8.3.0)
 - An API key for that gateway
 
@@ -59,8 +59,7 @@ Then require the provider, and `tofu init` installs it for your platform:
 terraform {
   required_providers {
     ignition = {
-      source  = "apollogeddon/ignition"
-      version = "~> 1.2"
+      source = "apollogeddon/ignition"
     }
   }
 }
@@ -128,7 +127,7 @@ go tool -modfile=.forgego/task/go.mod task test:acc  # acceptance tests against 
 go tool -modfile=.forgego/task/go.mod task docs      # generate the provider reference into docs/
 ```
 
-`task test` and `task test:acc` download the OpenTofu release pinned in `.github/scripts/install-tofu.sh` into `.bin/` and run against it. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), which release-please uses to version releases. `task docs` generates the provider reference into `docs/` with tfplugindocs, in the Terraform registry's layout, from each resource's schema descriptions and its examples under `examples/` (`resource.tf`, `data-source.tf` and `import.sh`). To preview it on the webpage, run `bash .github/scripts/ci/migrate-docs.sh` next. Git ignores both outputs, and CI generates them again for every build. Every attribute needs a description; `task test` fails on one without.
+`task test` and `task test:acc` download OpenTofu into `.bin/` and run against it. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), which release-please uses to version releases. `task docs` generates the provider reference into `docs/` with tfplugindocs, in the Terraform registry's layout, from each resource's schema descriptions and its examples under `examples/` (`resource.tf`, `data-source.tf` and `import.sh`). To preview it on the webpage, run `bash .github/scripts/ci/migrate-docs.sh` next. Git ignores both outputs, and CI generates them again for every build. Every attribute needs a description; `task test` fails on one without.
 
 ## License
 

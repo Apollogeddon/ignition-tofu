@@ -8,7 +8,7 @@ This guide shows how to install the `ignition` provider from a GitHub release, c
 
 ## Requirements
 
-- OpenTofu 1.6 or later, or Terraform 1.0 or later. The provider is developed and tested with OpenTofu.
+- OpenTofu or Terraform. The provider is developed and tested with OpenTofu.
 - An Ignition gateway, version 8.3 or later. The REST API the provider uses was introduced in Ignition 8.3.0.
 - An API key for that gateway, with permission to read and change its configuration.
 
@@ -51,8 +51,7 @@ Then declare the provider in your configuration, for example in `versions.tf`:
 terraform {
   required_providers {
     ignition = {
-      source  = "apollogeddon/ignition"
-      version = "~> 1.2"
+      source = "apollogeddon/ignition"
     }
   }
 }

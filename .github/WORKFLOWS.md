@@ -18,7 +18,7 @@ Every run starts from [`.index.yml`](./workflows/.index.yml) (`index`), on a pul
 | `patch (webpage)` | forgejs's [`patch.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/patch.yml) | `update` | After `patch (provider)`: commits OSV-Scanner's security patches to the site's dependencies. |
 | `merge` | forgego's [`merge.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/merge.yml) | `review`, `squash` | A Dependabot pull request: requests a review, and squash-merges it once every check above has passed or been skipped. |
 
-A new push to a pull request cancels its previous run. A run on `main` is never cancelled, so a release is never created without being published. The forge pipelines are called at `@ci-v2` until the forges switch to the new pipelines, then at `@main`.
+A new push to a pull request cancels its previous run. A run on `main` is never cancelled, so a release is never created without being published. The forge pipelines are called at `@main`.
 
 ## Quality and testing
 
@@ -55,11 +55,11 @@ The git hooks format staged Go files, check that forgego's files are current and
 
 The `provider / test (gateway)` stage tests the provider against a real gateway:
 
-- **Gateway**: starts an Ignition 8.3.10 gateway (the image `bootstrap/Dockerfile` pins) from `docker-compose.yml`, which restores the seed backup in `assets/ignition.gwbk`.
+- **Gateway**: starts an Ignition gateway (`bootstrap/Dockerfile`) from `docker-compose.yml`, which restores the seed backup in `assets/ignition.gwbk`.
 - **Readiness**: waits until the gateway responds.
 - **Tests**: runs `task test:acc`, which creates, reads, updates and deletes each resource through the live API with OpenTofu.
 
-The unit tests, the acceptance tests and the documentation build all use the OpenTofu release pinned in `.github/scripts/install-tofu.sh`, which verifies the download against the release's checksums.
+The unit tests, the acceptance tests and the documentation build all install OpenTofu with `.github/scripts/install-tofu.sh`, which verifies the download against the release's checksums.
 
 ## Release process
 
@@ -75,7 +75,7 @@ release-please creates each release as a draft; GoReleaser attaches the files an
 The `website` pipeline builds the [Astro](https://astro.build/) documentation site in `webpage/` with forgejs's [`website.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/website.yml) and `working_directory: webpage`:
 
 - **lint (markdown)**: a stage of this repository's own, in `.index.yml`, which lints every Markdown file in the repository with `markdownlint-cli2`.
-- **Generated content**: before each install, forgejs installs Go from `go.mod` and runs the pre-build command, which generates the provider reference with `tfplugindocs` from the schema OpenTofu reports and from `examples/`, copies it into the site with `migrate-docs.sh`, and writes the provider network mirror (`generate-mirror.sh`) from the releases.
+- **Generated content**: before each install, forgejs installs Go and runs the pre-build command, which generates the provider reference with `tfplugindocs` from the schema OpenTofu reports and from `examples/`, copies it into the site with `migrate-docs.sh`, and writes the provider network mirror (`generate-mirror.sh`) from the releases.
 - **lint** and **scan**: Biome and the type check; Gitleaks over the whole repository and OSV-Scanner on the site's dependencies.
 - **build** and **check**: builds the site, then checks its internal links with lychee and every page against WCAG 2.2 A and AA with axe, so a broken or inaccessible site fails the pull request.
 - **Deploy**: on `main`, `pages / deploy` publishes the site to GitHub Pages.
