@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.6](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.5...v1.2.6) (2026-11-01)
+
+
+### Bug Fixes
+
+* **deps:** Bump fast-uri from 3.1.8 to 3.1.9 ([#110](https://github.com/Apollogeddon/ignition-tofu/issues/110)) ([6c3adcb](https://github.com/Apollogeddon/ignition-tofu/commit/6c3adcb2afb883cad829d7a041fd0a53dfb868ec))
+
 ## [1.2.5](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.4...v1.2.5) (2026-10-16)
 
 
