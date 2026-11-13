@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.6](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.5...v1.2.6) (2026-11-13)
+
+
+### Bug Fixes
+
+* **deps:** Bump fast-uri from 3.1.8 to 3.1.9 ([#110](https://github.com/Apollogeddon/ignition-tofu/issues/110)) ([6c3adcb](https://github.com/Apollogeddon/ignition-tofu/commit/6c3adcb2afb883cad829d7a041fd0a53dfb868ec))
+* **deps:** Bump markdownlint-cli2 ([#114](https://github.com/Apollogeddon/ignition-tofu/issues/114)) ([d0b46f8](https://github.com/Apollogeddon/ignition-tofu/commit/d0b46f88571616d03f637f48c76d4d73bd87f2a8))
+* **deps:** Bump the apollogeddon group across 2 directories with 1 update ([#113](https://github.com/Apollogeddon/ignition-tofu/issues/113)) ([f742960](https://github.com/Apollogeddon/ignition-tofu/commit/f742960d34fec8ba9dd7cb9820c07c69535487b0))
+
 ## [1.2.5](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.4...v1.2.5) (2026-10-16)
 
 
