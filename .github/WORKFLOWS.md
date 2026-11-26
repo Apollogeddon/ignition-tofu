@@ -14,8 +14,7 @@ Every run starts from [`.index.yml`](./workflows/.index.yml) (`index`), on a pul
 | `publish` | forgego's [`publish.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/publish.yml) | `assets` | When a release was created and `provider` passed. |
 | `website` | forgejs's [`website.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/website.yml) | `lint`, `scan`, `build`, `check`, and this repository's `lint (markdown)` | Every run but the weekly one; after a release, once `publish` has attached its files (see [Documentation](#documentation)). |
 | `pages` | forgejs's [`pages.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/pages.yml) | `deploy` | On `main`, once `website` passed. |
-| `patch (provider)` | forgego's [`patch.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/patch.yml) | `update` | Weekly, on a manual run and after a Dependabot merge: refreshes the files forgego manages and upgrades the modules govulncheck reports as vulnerable, committing to `main`. |
-| `patch (webpage)` | forgejs's [`patch.yml`](https://github.com/apollogeddon/forgejs/blob/main/.github/workflows/patch.yml) | `update` | After `patch (provider)`: commits OSV-Scanner's security patches to the site's dependencies. |
+| `patch (provider)` | forgego's [`patch.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/patch.yml) | `update` | Weekly, on a manual run and after a Dependabot merge: refreshes the files forgego manages and proposes the refresh as a pull request. Vulnerable modules and npm packages are left to Dependabot security updates, which must be turned on in the repository's settings. |
 | `merge` | forgego's [`merge.yml`](https://github.com/apollogeddon/forgego/blob/main/.github/workflows/merge.yml) | `review`, `squash` | A Dependabot pull request: requests a review, and squash-merges it once every check above has passed or been skipped. |
 
 A new push to a pull request cancels its previous run. A run on `main` is never cancelled, so a release is never created without being published. The forge pipelines are called at `@main`.
@@ -45,7 +44,7 @@ The git hooks format staged Go files, check that forgego's files are current and
 
 [`provider.yml`](./workflows/provider.yml) runs:
 
-- **lint**: a check that forgego's files are current (on a Dependabot pull request, they are refreshed instead, and the patch pipeline commits them), `go mod tidy -diff`, the golangci-lint format check and lint (forgego's base configuration merged with `.golangci.local.yml` into `.golangci.yml`), and shellcheck on every shell script.
+- **lint**: a check that forgego's files are current (on a Dependabot pull request, they are refreshed instead, and the patch pipeline proposes them as a pull request), `go mod tidy -diff`, the golangci-lint format check and lint (forgego's base configuration merged with `.golangci.local.yml` into `.golangci.yml`), and shellcheck on every shell script.
 - **scan**: OSV-Scanner (`osv-scanner.toml` lists the findings accepted until a set date, each with its reason; a high or critical finding fails a pull request and is annotated elsewhere), govulncheck, and Trivy on the provider's Go modules, which fails on high or critical vulnerabilities.
 - **test**: `task test`.
 - **test (gateway)**: the acceptance tests (see [Acceptance tests](#acceptance-tests)).
