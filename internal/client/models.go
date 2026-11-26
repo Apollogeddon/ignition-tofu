@@ -151,7 +151,7 @@ type OpcUaConnectionConfig struct {
 
 type AlarmJournalProfile struct {
 	Type      string `json:"type"`
-	QueryOnly bool   `json:"queryOnly,omitempty"`
+	QueryOnly bool   `json:"queryOnly"`
 }
 
 type AlarmJournalSettings struct {

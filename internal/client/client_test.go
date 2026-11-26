@@ -852,3 +852,15 @@ func TestClient_EncryptSecret_Error(t *testing.T) {
 func boolPtr(b bool) *bool {
 	return &b
 }
+
+// The gateway reads profile.queryOnly as a nullable Boolean and fails starting a journal
+// without it (a NullPointerException on queryOnly()), so false must be sent, not omitted.
+func TestAlarmJournalProfile_AlwaysSendsQueryOnly(t *testing.T) {
+	b, err := json.Marshal(AlarmJournalProfile{Type: "DATASOURCE"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(b), `{"type":"DATASOURCE","queryOnly":false}`; got != want {
+		t.Errorf("profile = %s, want %s", got, want)
+	}
+}
