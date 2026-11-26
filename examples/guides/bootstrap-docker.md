@@ -56,9 +56,8 @@ resource "docker_container" "gateway" {
 
   ports {
     internal = 8088
-    # loopback only: the gateway answers plain HTTP here, so it must not be reachable from the network
-    ip = "127.0.0.1"
-    external = 8088 # fixed; see "Things to know" below
+    external = 8088        # fixed; see "Things to know" below
+    ip       = "127.0.0.1" # loopback only; see "Things to know" below
   }
 
   healthcheck {
@@ -119,7 +118,11 @@ your key succeeds before you rely on it.
 
 ### Keep the password out of the configuration, and the gateway on loopback
 
-The admin password comes from the `admin_password` variable, so set it in the environment (`export TF_VAR_admin_password=...`) or from a secret store, never in a committed file. The container publishes port `8088` on `127.0.0.1` only: the provider talks to the gateway over plain HTTP here, which is safe on loopback but not across a network. For a gateway other machines reach, put it behind TLS and point the provider's `host` at the `https://` address.
+Set `admin_password` from the environment (`export TF_VAR_admin_password=...`)
+or a secret store, never in a committed file. The container publishes `8088`
+on `127.0.0.1` only, as the provider reaches it over plain HTTP. For a gateway
+other machines reach, put it behind TLS and set the provider's `host` to its
+`https://` address.
 
 ### Use a fixed external port
 
