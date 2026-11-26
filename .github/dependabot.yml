@@ -41,6 +41,22 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
+  # The tools forgego pins in .forgego/: their newer pins arrive with forgego and forgego sync, so
+  # Dependabot proposes only their security updates (a limit of 0 stops version updates, and
+  # security updates aren't counted against it), as forgego's generated configuration does.
+  - package-ecosystem: "gomod"
+    directories:
+      - "/.forgego/golangci-lint"
+      - "/.forgego/gotestsum"
+      - "/.forgego/govulncheck"
+      - "/.forgego/lefthook"
+      - "/.forgego/task"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: "chore(deps)"
+
   - package-ecosystem: "npm"
     directories:
       - "/"
