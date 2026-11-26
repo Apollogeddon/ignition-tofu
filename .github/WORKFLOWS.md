@@ -45,7 +45,7 @@ The git hooks format staged Go files, check that forgego's files are current and
 [`provider.yml`](./workflows/provider.yml) runs:
 
 - **lint**: a check that forgego's files are current (on a Dependabot pull request, they are refreshed instead, and the patch pipeline proposes them as a pull request), `go mod tidy -diff`, the golangci-lint format check and lint (forgego's base configuration merged with `.golangci.local.yml` into `.golangci.yml`), and shellcheck on every shell script.
-- **scan**: OSV-Scanner (`osv-scanner.toml` lists the findings accepted until a set date, each with its reason; a high or critical finding fails a pull request and is annotated elsewhere), govulncheck, and Trivy on the provider's Go modules, which fails on high or critical vulnerabilities.
+- **scan**: OSV-Scanner, pinned and checksum-verified (`osv-scanner.toml` lists the findings accepted until a set date, each with its reason), govulncheck, and Trivy on the provider's Go modules, which fails on high or critical vulnerabilities with a fix. On a pull request, OSV-Scanner and govulncheck also scan its base branch, and only a high or critical OSV finding, or a vulnerability the code calls, that the pull request adds fails it. One the base branch already has is annotated, so an advisory nothing fixes yet doesn't block every other pull request; elsewhere every finding is annotated.
 - **test**: `task test`.
 - **test (gateway)**: the acceptance tests (see [Acceptance tests](#acceptance-tests)).
 - **build**: `task build`.
