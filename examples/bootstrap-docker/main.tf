@@ -13,6 +13,16 @@ terraform {
 # a known configuration (see bootstrap/Dockerfile). This is the same pattern
 # used by docker-compose.yml for acceptance testing, expressed as a native
 # Terraform resource instead of Docker Compose.
+variable "admin_password" {
+  description = "The gateway's admin password, e.g. from TF_VAR_admin_password; never commit one"
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = length(var.admin_password) >= 12
+    error_message = "admin_password must be at least 12 characters."
+  }
+}
+
 resource "docker_image" "gateway" {
   name = "ignition-tofu-bootstrap"
   build {
@@ -33,12 +43,14 @@ resource "docker_container" "gateway" {
   env = [
     "ACCEPT_IGNITION_EULA=Y",
     "GATEWAY_ADMIN_USERNAME=admin",
-    "GATEWAY_ADMIN_PASSWORD=password123",
+    "GATEWAY_ADMIN_PASSWORD=${var.admin_password}",
     "IGNITION_EDITION=standard",
   ]
 
   ports {
     internal = 8088
+    # loopback only: the gateway answers plain HTTP here, so it must not be reachable from the network
+    ip = "127.0.0.1"
     # Fixed, not random: the "ignition" provider block below needs a host it
     # can reference before this container exists, and provider blocks can't
     # depend on a resource's computed attributes in the same apply.
