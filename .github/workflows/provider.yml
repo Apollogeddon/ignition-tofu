@@ -68,28 +68,57 @@ jobs:
     permissions:
       contents: read
     steps:
+      # the whole history, so a pull request's base branch can be checked out beside it below
       - name: Check out
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-      # A high or critical finding (CVSS 7 or more) fails a pull request; elsewhere it's annotated
-      # instead, so releases and the patch pipeline that fixes it still run. osv-scanner.toml lists
+          fetch-depth: 0
+      # On a pull request, its base branch in a worktree outside the workspace, so OSV-Scanner and govulncheck can
+      # tell a finding the pull request adds from one it was opened with, and Trivy never reads it
+      - name: Check out the base branch
+        id: base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git worktree add --detach "$RUNNER_TEMP/base" "$BASE_SHA"; then
+            echo "dir=$RUNNER_TEMP/base" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::couldn't check out the base branch, so every finding counts as new"
+          fi
+      # A high or critical finding (CVSS 7 or more) that a pull request adds fails it; one already on its base
+      # branch, and any finding elsewhere, is annotated instead, so a vulnerability no update fixes yet never
+      # blocks every other pull request (Dependabot's included) and releases still run. osv-scanner.toml lists
       # the findings accepted until a set date
       - name: Scan with OSV
         id: osv
+        env:
+          # a release pinned with its checksum, from the release's osv-scanner_SHA256SUMS
+          VERSION: v2.7.0
+          SHA256: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b
+          BASE_DIR: ${{ steps.base.outputs.dir }}
         run: |
-          curl -sL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o "$RUNNER_TEMP/osv-scanner"
+          curl -sSfL "https://github.com/google/osv-scanner/releases/download/$VERSION/osv-scanner_linux_amd64" -o "$RUNNER_TEMP/osv-scanner"
+          echo "$SHA256  $RUNNER_TEMP/osv-scanner" | sha256sum -c --quiet
           chmod +x "$RUNNER_TEMP/osv-scanner"
           # 0: nothing found, 1: vulnerabilities found, 128: no lockfile, anything else: no scan
           status=0
           "$RUNNER_TEMP/osv-scanner" scan source -r --format json --output-file "$RUNNER_TEMP/osv.json" . || status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ -n "$BASE_DIR" ]; then
+            base=0
+            "$RUNNER_TEMP/osv-scanner" scan source -r --format json --output-file "$RUNNER_TEMP/osv-base.json" "$BASE_DIR" || base=$?
+            echo "base_status=$base" >> "$GITHUB_OUTPUT"
+          fi
           rm "$RUNNER_TEMP/osv-scanner"
       - name: Report OSV findings
         uses: actions/github-script@v9
         env:
           OSV_STATUS: ${{ steps.osv.outputs.status }}
           OSV_REPORT: ${{ runner.temp }}/osv.json
+          OSV_BASE_STATUS: ${{ steps.osv.outputs.base_status }}
+          OSV_BASE_REPORT: ${{ runner.temp }}/osv-base.json
           OSV_ENFORCE: ${{ github.event_name == 'pull_request' }}
         with:
           script: |
@@ -105,10 +134,24 @@ jobs:
               return;
             }
             const report = JSON.parse(fs.readFileSync(process.env.OSV_REPORT, 'utf8'));
+            // the advisories the base branch already has, per package; with no base report, every high finding is new
+            const key = (pkg, id) => `${pkg.ecosystem ?? ''}:${pkg.name}:${id}`;
+            const onBase = new Set();
+            const baseStatus = Number(process.env.OSV_BASE_STATUS);
+            if ((baseStatus === 0 || baseStatus === 1) && fs.existsSync(process.env.OSV_BASE_REPORT)) {
+              for (const result of JSON.parse(fs.readFileSync(process.env.OSV_BASE_REPORT, 'utf8')).results ?? []) {
+                for (const { package: pkg, groups = [] } of result.packages ?? []) {
+                  for (const group of groups) for (const id of group.ids) onBase.add(key(pkg, id));
+                }
+              }
+            } else if (process.env.OSV_ENFORCE === 'true' && baseStatus !== 128) {
+              core.warning("The base branch couldn't be scanned, so every high or critical finding fails this pull request", { title: 'OSV scan' });
+            }
             // a GitHub advisory's rating when an advisory has no CVSS score
             const ratings = { CRITICAL: 9, HIGH: 7, MODERATE: 4, MEDIUM: 4, LOW: 1 };
             const rows = [];
             let blocking = 0;
+            let known = 0;
             for (const result of report.results ?? []) {
               const file = path.relative(process.env.GITHUB_WORKSPACE, result.source.path);
               for (const { package: pkg, vulnerabilities = [], groups = [] } of result.packages ?? []) {
@@ -120,7 +163,10 @@ jobs:
                   }
                   const high = score >= 7;
                   const message = `${pkg.name} ${pkg.version}: ${group.ids.join(', ')} ${vulns[0]?.summary ?? ''} (severity ${score || 'unknown'})`;
-                  if (high) {
+                  if (high && group.ids.every((id) => onBase.has(key(pkg, id)))) {
+                    known++;
+                    core.warning(`${message}, already on the base branch`, { title: 'High or critical vulnerability', file });
+                  } else if (high) {
                     blocking++;
                     core.error(message, { title: 'High or critical vulnerability', file });
                   } else {
@@ -136,14 +182,16 @@ jobs:
                 .addTable([['Lockfile', 'Package', 'Advisories', 'Severity'], ...rows])
                 .write();
             }
-            const found = `${blocking} high or critical ${blocking === 1 ? 'vulnerability' : 'vulnerabilities'}`;
+            const count = (n) => `${n} high or critical ${n === 1 ? 'vulnerability' : 'vulnerabilities'}`;
             if (blocking && process.env.OSV_ENFORCE === 'true') {
-              core.setFailed(`${found}: update the packages, or record an accepted one in osv-scanner.toml`);
+              core.setFailed(`${count(blocking)} this pull request adds: update the packages, or record an accepted one in osv-scanner.toml`);
             } else if (blocking) {
-              core.warning(`${found}: this fails pull requests until they're updated, as the patch pipeline may do`, { title: 'OSV scan' });
-            } else {
-              core.info(`${rows.length} found, none high or critical`);
+              core.warning(`${count(blocking)}: a pull request that adds one fails, and a Dependabot security update fixes them`, { title: 'OSV scan' });
             }
+            if (known) {
+              core.warning(`${count(known)} already on the base branch: they fail no pull request, and a Dependabot security update fixes them`, { title: 'OSV scan' });
+            }
+            if (!blocking && !known) core.info(`${rows.length} found, none high or critical`);
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
@@ -151,12 +199,42 @@ jobs:
           cache-dependency-path: |
             go.sum
             .forgego/*/go.sum
-      # Reports only the vulnerabilities the code actually calls. It doesn't fail the checks, as the
-      # patch pipeline upgrades the vulnerable modules
+      # Only the vulnerabilities the code actually calls. One a pull request adds fails it; one already on its base
+      # branch, and any elsewhere, warns instead, so releases still run while a Dependabot security update fixes it
       - name: Scan with govulncheck
+        env:
+          ENFORCE: ${{ github.event_name == 'pull_request' }}
+          BASE_DIR: ${{ steps.base.outputs.dir }}
         run: |
-          go tool -modfile=.forgego/govulncheck/go.mod govulncheck ./... ||
-            echo "::warning::govulncheck found vulnerabilities the code calls; the patch pipeline upgrades them on main"
+          # the advisories of the findings whose trace reaches a function: those the code calls
+          called() {
+            (cd "$1" && go tool -modfile=.forgego/govulncheck/go.mod govulncheck -format json ./...) > "$2" &&
+              jq -r 'select(.finding.trace[0].function? // "" | length > 0) | .finding.osv' "$2" | sort -u
+          }
+          if ! found=$(called . "$RUNNER_TEMP/govulncheck.json"); then
+            if [ "$ENFORCE" = true ]; then echo "::error::govulncheck couldn't finish; see the log"; exit 1; fi
+            echo "::warning::govulncheck couldn't finish; see the log"
+            exit 0
+          fi
+          if [ -z "$found" ]; then echo "No vulnerabilities the code calls"; exit 0; fi
+          known=""
+          if [ "$ENFORCE" = true ] && [ -n "$BASE_DIR" ]; then
+            known=$(called "$BASE_DIR" "$RUNNER_TEMP/govulncheck-base.json") ||
+              { echo "::warning::govulncheck couldn't scan the base branch, so every finding counts as new"; known=""; }
+          fi
+          new=0
+          for id in $found; do
+            if [ "$ENFORCE" = true ] && ! grep -qxF "$id" <<< "$known"; then
+              echo "::error title=govulncheck::the code calls $id: https://pkg.go.dev/vuln/$id"
+              new=$((new + 1))
+            else
+              echo "::warning title=govulncheck::the code calls $id: https://pkg.go.dev/vuln/$id"
+            fi
+          done
+          if [ "$new" -gt 0 ]; then
+            echo "::error::this pull request adds vulnerabilities the code calls ($new): upgrade the modules govulncheck names"
+            exit 1
+          fi
       - name: Scan with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:

@@ -170,28 +170,16 @@ jobs:
       pages: write
       id-token: write
 
-  # Weekly, by hand, or after a merge's dispatch: forgego's files refreshed and the modules govulncheck
-  # finds vulnerable upgraded on main
+  # Weekly, by hand, or after a merge's dispatch: a pull request refreshing the files forgego manages.
+  # Vulnerable modules and the site's npm packages are left to Dependabot security updates, which must be
+  # turned on in the repository's settings.
   patch-provider:
     name: patch (provider)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'
     uses: apollogeddon/forgego/.github/workflows/patch.yml@main
     permissions:
       contents: write
-
-  # the site's vulnerable npm dependencies, after the provider's patch so the two never push at once
-  patch-webpage:
-    name: patch (webpage)
-    needs: patch-provider
-    if: >-
-      ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'repository_dispatch') }}
-    uses: apollogeddon/forgejs/.github/workflows/patch.yml@main
-    permissions:
-      contents: write
-      packages: read
-    with:
-      working_directory: webpage
+      pull-requests: write
 
   # Dependabot's pull requests: a review request, and a squash merge once every check above passed
   merge:
