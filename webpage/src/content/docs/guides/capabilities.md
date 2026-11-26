@@ -47,6 +47,7 @@ This page lists the gateway configuration the `ignition` provider manages, the d
 | Resource | Description |
 | :--- | :--- |
 | `ignition_store_forward` | Store-and-forward engines that buffer data while a database is unavailable. |
+| `ignition_historian_provider` | Historian providers for tag history (8.3), of type `SqlHistorian`, with partitioning and pruning. |
 
 ## Data sources
 

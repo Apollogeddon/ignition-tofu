@@ -59,6 +59,10 @@ type IgnitionClient interface {
 	CreateAlarmJournal(ctx context.Context, item ResourceResponse[AlarmJournalConfig]) (*ResourceResponse[AlarmJournalConfig], error)
 	UpdateAlarmJournal(ctx context.Context, item ResourceResponse[AlarmJournalConfig]) (*ResourceResponse[AlarmJournalConfig], error)
 	DeleteAlarmJournal(ctx context.Context, name, signature string) error
+	GetHistorianProvider(ctx context.Context, name string) (*ResourceResponse[HistorianProviderConfig], error)
+	CreateHistorianProvider(ctx context.Context, item ResourceResponse[HistorianProviderConfig]) (*ResourceResponse[HistorianProviderConfig], error)
+	UpdateHistorianProvider(ctx context.Context, item ResourceResponse[HistorianProviderConfig]) (*ResourceResponse[HistorianProviderConfig], error)
+	DeleteHistorianProvider(ctx context.Context, name, signature string) error
 	GetSMTPProfile(ctx context.Context, name string) (*ResourceResponse[SMTPProfileConfig], error)
 	CreateSMTPProfile(ctx context.Context, item ResourceResponse[SMTPProfileConfig]) (*ResourceResponse[SMTPProfileConfig], error)
 	UpdateSMTPProfile(ctx context.Context, item ResourceResponse[SMTPProfileConfig]) (*ResourceResponse[SMTPProfileConfig], error)
@@ -516,6 +520,29 @@ func (c *Client) UpdateAlarmJournal(ctx context.Context, i ResourceResponse[Alar
 
 func (c *Client) DeleteAlarmJournal(ctx context.Context, n, s string) error {
 	return c.DeleteResourceWithModule(ctx, "ignition", "alarm-journal", n, s)
+}
+
+// historianModule is the module that owns historian providers on 8.3
+const historianModule = "com.inductiveautomation.historian"
+
+func (c *Client) GetHistorianProvider(ctx context.Context, n string) (*ResourceResponse[HistorianProviderConfig], error) {
+	return getR[HistorianProviderConfig](ctx, c, historianModule, "historian-provider", n)
+}
+
+func (c *Client) CreateHistorianProvider(ctx context.Context, i ResourceResponse[HistorianProviderConfig]) (*ResourceResponse[HistorianProviderConfig], error) {
+	var r ResourceResponse[HistorianProviderConfig]
+	err := c.CreateResourceWithModule(ctx, historianModule, "historian-provider", i, &r)
+	return &r, err
+}
+
+func (c *Client) UpdateHistorianProvider(ctx context.Context, i ResourceResponse[HistorianProviderConfig]) (*ResourceResponse[HistorianProviderConfig], error) {
+	var r ResourceResponse[HistorianProviderConfig]
+	err := c.UpdateResourceWithModule(ctx, historianModule, "historian-provider", i, &r)
+	return &r, err
+}
+
+func (c *Client) DeleteHistorianProvider(ctx context.Context, n, s string) error {
+	return c.DeleteResourceWithModule(ctx, historianModule, "historian-provider", n, s)
 }
 
 func (c *Client) GetSMTPProfile(ctx context.Context, n string) (*ResourceResponse[SMTPProfileConfig], error) {
