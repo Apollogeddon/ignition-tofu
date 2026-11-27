@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.3.0](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.5...v1.3.0) (2026-11-27)
+
+
+### Features
+
+* Add ignition_historian_provider, send an alarm journal's queryOnly, and keep the bootstrap example's password out of the config ([558bb3b](https://github.com/Apollogeddon/ignition-tofu/commit/558bb3bc459f4b5a140e2936969a517bdeece664))
+* **provider:** Add ignition_historian_provider for 8.3's sql historian, so tag history can be configured as code ([aa52b09](https://github.com/Apollogeddon/ignition-tofu/commit/aa52b09e8d6a89c2b3c215b081e29f8dd6af9a00))
+
+
+### Bug Fixes
+
+* **ci:** Fail a pull request only on the vulnerabilities it adds, and pin osv-scanner by checksum ([3ca885f](https://github.com/Apollogeddon/ignition-tofu/commit/3ca885f32bd7892196710666fc00544872f0633c))
+* **ci:** Land the forgego and go-jose bumps, gate scans on what a PR adds, and pin OSV-Scanner ([45ad1f3](https://github.com/Apollogeddon/ignition-tofu/commit/45ad1f3cfd490d0e60311283b4b11273053a7bad))
+* **ci:** Let patch (provider) open its pull request, and drop the retired webpage patch ([c409bc4](https://github.com/Apollogeddon/ignition-tofu/commit/c409bc4dc48255d81f29719ec86817d36d2fa9e7))
+* **client:** Always send an alarm journal's queryOnly, so the gateway doesn't fail starting a journal on a missing value ([dcbddda](https://github.com/Apollogeddon/ignition-tofu/commit/dcbddda701497d0730fd20c87b4aa055599d55dd))
+* **deps:** Bump fast-uri from 3.1.8 to 3.1.9 ([#110](https://github.com/Apollogeddon/ignition-tofu/issues/110)) ([6c3adcb](https://github.com/Apollogeddon/ignition-tofu/commit/6c3adcb2afb883cad829d7a041fd0a53dfb868ec))
+* **deps:** Bump forgego to 2.1.1 and sync its managed files, past go-jose's GHSA-mgcc-cww5-fp2q ([f2cddd5](https://github.com/Apollogeddon/ignition-tofu/commit/f2cddd5905e9a413964c874664852dff722dd2e3))
+* **deps:** Bump golang.org/x/net to v0.62.0, past CVE-2026-78661, which trivy fails the scan on ([efab9e5](https://github.com/Apollogeddon/ignition-tofu/commit/efab9e55f31a71cea9b1d566f22fd9bac6f58488))
+* **deps:** Bump markdownlint-cli2 ([#114](https://github.com/Apollogeddon/ignition-tofu/issues/114)) ([d0b46f8](https://github.com/Apollogeddon/ignition-tofu/commit/d0b46f88571616d03f637f48c76d4d73bd87f2a8))
+* **deps:** Bump markdownlint-cli2 ([#123](https://github.com/Apollogeddon/ignition-tofu/issues/123)) ([1e4c8ec](https://github.com/Apollogeddon/ignition-tofu/commit/1e4c8ecd229986a18e5d97459b4a215a6e7d9d90))
+* **deps:** Bump the apollogeddon group across 2 directories with 1 update ([#113](https://github.com/Apollogeddon/ignition-tofu/issues/113)) ([f742960](https://github.com/Apollogeddon/ignition-tofu/commit/f742960d34fec8ba9dd7cb9820c07c69535487b0))
+* **deps:** Bump the apollogeddon group across 2 directories with 1 update ([#125](https://github.com/Apollogeddon/ignition-tofu/issues/125)) ([703eac6](https://github.com/Apollogeddon/ignition-tofu/commit/703eac6dd84f2d195c952a2a457cc43c0d459c23))
+* **deps:** Bump the dependencies group across 2 directories with 3 updates ([#118](https://github.com/Apollogeddon/ignition-tofu/issues/118)) ([c22b5bc](https://github.com/Apollogeddon/ignition-tofu/commit/c22b5bc3220113d73fa75c7115c18e4403b42a3e))
+
 ## [1.2.5](https://github.com/Apollogeddon/ignition-tofu/compare/v1.2.4...v1.2.5) (2026-10-16)
 
 
