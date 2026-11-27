@@ -182,6 +182,7 @@ func (p *IgnitionProvider) Resources(ctx context.Context) []func() resource.Reso
 		resources.NewAlarmNotificationProfileResource,
 		resources.NewOpcUaConnectionResource,
 		resources.NewAlarmJournalResource,
+		resources.NewHistorianProviderResource,
 		resources.NewSMTPProfileResource,
 		resources.NewStoreAndForwardResource,
 		resources.NewIdentityProviderResource,

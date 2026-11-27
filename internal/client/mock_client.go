@@ -44,6 +44,10 @@ type MockClient struct {
 	CreateAlarmJournalFunc             func(ctx context.Context, i ResourceResponse[AlarmJournalConfig]) (*ResourceResponse[AlarmJournalConfig], error)
 	UpdateAlarmJournalFunc             func(ctx context.Context, i ResourceResponse[AlarmJournalConfig]) (*ResourceResponse[AlarmJournalConfig], error)
 	DeleteAlarmJournalFunc             func(ctx context.Context, n, s string) error
+	GetHistorianProviderFunc           func(ctx context.Context, n string) (*ResourceResponse[HistorianProviderConfig], error)
+	CreateHistorianProviderFunc        func(ctx context.Context, i ResourceResponse[HistorianProviderConfig]) (*ResourceResponse[HistorianProviderConfig], error)
+	UpdateHistorianProviderFunc        func(ctx context.Context, i ResourceResponse[HistorianProviderConfig]) (*ResourceResponse[HistorianProviderConfig], error)
+	DeleteHistorianProviderFunc        func(ctx context.Context, n, s string) error
 	GetSMTPProfileFunc                 func(ctx context.Context, n string) (*ResourceResponse[SMTPProfileConfig], error)
 	CreateSMTPProfileFunc              func(ctx context.Context, i ResourceResponse[SMTPProfileConfig]) (*ResourceResponse[SMTPProfileConfig], error)
 	UpdateSMTPProfileFunc              func(ctx context.Context, i ResourceResponse[SMTPProfileConfig]) (*ResourceResponse[SMTPProfileConfig], error)
@@ -353,6 +357,34 @@ func (m *MockClient) UpdateAlarmJournal(ctx context.Context, i ResourceResponse[
 func (m *MockClient) DeleteAlarmJournal(ctx context.Context, n, s string) error {
 	if m.DeleteAlarmJournalFunc != nil {
 		return m.DeleteAlarmJournalFunc(ctx, n, s)
+	}
+	return nil
+}
+
+func (m *MockClient) GetHistorianProvider(ctx context.Context, n string) (*ResourceResponse[HistorianProviderConfig], error) {
+	if m.GetHistorianProviderFunc != nil {
+		return m.GetHistorianProviderFunc(ctx, n)
+	}
+	return &ResourceResponse[HistorianProviderConfig]{}, nil
+}
+
+func (m *MockClient) CreateHistorianProvider(ctx context.Context, i ResourceResponse[HistorianProviderConfig]) (*ResourceResponse[HistorianProviderConfig], error) {
+	if m.CreateHistorianProviderFunc != nil {
+		return m.CreateHistorianProviderFunc(ctx, i)
+	}
+	return &ResourceResponse[HistorianProviderConfig]{}, nil
+}
+
+func (m *MockClient) UpdateHistorianProvider(ctx context.Context, i ResourceResponse[HistorianProviderConfig]) (*ResourceResponse[HistorianProviderConfig], error) {
+	if m.UpdateHistorianProviderFunc != nil {
+		return m.UpdateHistorianProviderFunc(ctx, i)
+	}
+	return &ResourceResponse[HistorianProviderConfig]{}, nil
+}
+
+func (m *MockClient) DeleteHistorianProvider(ctx context.Context, n, s string) error {
+	if m.DeleteHistorianProviderFunc != nil {
+		return m.DeleteHistorianProviderFunc(ctx, n, s)
 	}
 	return nil
 }

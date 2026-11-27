@@ -151,7 +151,7 @@ type OpcUaConnectionConfig struct {
 
 type AlarmJournalProfile struct {
 	Type      string `json:"type"`
-	QueryOnly bool   `json:"queryOnly,omitempty"`
+	QueryOnly bool   `json:"queryOnly"`
 }
 
 type AlarmJournalSettings struct {
@@ -345,4 +345,42 @@ type DeviceWireProfile struct {
 type DeviceWireConfig struct {
 	Profile  DeviceWireProfile `json:"profile"`
 	Settings DeviceConfig      `json:"settings"`
+}
+
+// HistorianProviderProfile names a historian's kind; the resource supports
+// SqlHistorian, which stores tag history in a database connection.
+type HistorianProviderProfile struct {
+	Type string `json:"type"`
+}
+
+// HistorianPartition splits a SQL historian's data into a table per period.
+type HistorianPartition struct {
+	Enabled                 bool   `json:"enabled"`
+	Size                    int64  `json:"size"`
+	SizeUnits               string `json:"sizeUnits"`
+	PartitionSeedQueryLimit int64  `json:"partitionSeedQueryLimit"`
+	Optimized               bool   `json:"optimized"`
+	OptimizedWindowSeconds  int64  `json:"optimizedWindowSeconds"`
+}
+
+// HistorianPruning deletes a SQL historian's partitions older than an age.
+type HistorianPruning struct {
+	Enabled  bool   `json:"enabled"`
+	Age      int64  `json:"age"`
+	AgeUnits string `json:"ageUnits"`
+}
+
+// HistorianProviderSettings are a SQL historian's settings. Every field is
+// sent, as the gateway does when it creates one with its defaults.
+type HistorianProviderSettings struct {
+	Database        string             `json:"database"`
+	Partition       HistorianPartition `json:"partition"`
+	Pruning         HistorianPruning   `json:"pruning"`
+	TrackSce        bool               `json:"trackSce"`
+	StaleMultiplier int64              `json:"staleMultiplier"`
+}
+
+type HistorianProviderConfig struct {
+	Profile  HistorianProviderProfile  `json:"profile"`
+	Settings HistorianProviderSettings `json:"settings"`
 }

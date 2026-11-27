@@ -25,6 +25,16 @@ terraform {
   }
 }
 
+variable "admin_password" {
+  description = "The gateway's admin password, e.g. from TF_VAR_admin_password; never commit one"
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = length(var.admin_password) >= 12
+    error_message = "admin_password must be at least 12 characters."
+  }
+}
+
 resource "docker_image" "gateway" {
   name = "my-ignition-gateway"
   build {
@@ -40,13 +50,14 @@ resource "docker_container" "gateway" {
   env = [
     "ACCEPT_IGNITION_EULA=Y",
     "GATEWAY_ADMIN_USERNAME=admin",
-    "GATEWAY_ADMIN_PASSWORD=password123",
+    "GATEWAY_ADMIN_PASSWORD=${var.admin_password}",
     "IGNITION_EDITION=standard",
   ]
 
   ports {
     internal = 8088
-    external = 8088 # fixed; see "Things to know" below
+    external = 8088        # fixed; see "Things to know" below
+    ip       = "127.0.0.1" # loopback only; see "Things to know" below
   }
 
   healthcheck {
@@ -104,6 +115,14 @@ is the same sequence `docker-compose.yml` uses for this repository's
 acceptance tests. If your seed backup has only the default security
 configuration, you can try the `-r` flag, but confirm that an API call with
 your key succeeds before you rely on it.
+
+### Keep the password out of the configuration, and the gateway on loopback
+
+Set `admin_password` from the environment (`export TF_VAR_admin_password=...`)
+or a secret store, never in a committed file. The container publishes `8088`
+on `127.0.0.1` only, as the provider reaches it over plain HTTP. For a gateway
+other machines reach, put it behind TLS and set the provider's `host` to its
+`https://` address.
 
 ### Use a fixed external port
 

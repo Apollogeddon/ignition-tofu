@@ -100,7 +100,7 @@ Instead of setting `host` and `token` in configuration, you can set these enviro
 | Connectivity | `ignition_opc_ua_connection`, `ignition_device`, `ignition_gan_outgoing` |
 | Gateway settings | `ignition_redundancy`, `ignition_gan_settings`, `ignition_smtp_profile` |
 | Alarming and auditing | `ignition_alarm_journal`, `ignition_alarm_notification_profile`, `ignition_audit_profile` |
-| Data storage | `ignition_store_forward` |
+| Data storage | `ignition_store_forward`, `ignition_historian_provider` |
 
 Data sources are available for projects, database connections, tag providers, user sources, SMTP profiles and store-and-forward engines. See the [documentation](https://apollogeddon.github.io/ignition-tofu) for every attribute.
 
