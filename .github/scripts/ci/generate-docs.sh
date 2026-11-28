@@ -38,3 +38,6 @@ jq '.provider_schemas |= with_entries(.key = "registry.terraform.io/hashicorp/ig
 echo "Generating documentation..."
 go run "github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@$TF_PLUGIN_DOCS_VERSION" generate \
   --provider-name ignition --providers-schema "$work/providers-schema.json"
+
+# the exported schema has no defaults, so tfplugindocs can't show them: add them from the provider's own schemas
+go run ./internal/tools/docdefaults docs

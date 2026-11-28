@@ -188,7 +188,7 @@ func (r *IdentityProviderResource) Schema(ctx context.Context, req resource.Sche
 				Default:     booldefault.StaticBool(false),
 			},
 			"acs_binding": schema.StringAttribute{
-				Description: "The expected binding used by the IdP (HTTP-Redirect, HTTP-POST).",
+				Description: "The binding the IdP sends its response with, as a SAML binding URN: urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST (the default) or urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect.",
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString("urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"),
