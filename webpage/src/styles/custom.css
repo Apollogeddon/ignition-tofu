@@ -225,6 +225,28 @@ h6 {
   border-radius: 4px;
   font-size: 0.9em;
   border: 1px solid rgba(var(--sl-color-accent-rgb), 0.2);
+  /* a long name wraps rather than widening the page; break-word keeps short ones whole */
+  overflow-wrap: break-word;
+}
+
+/* a long URL or URN in running text wraps rather than widening the page */
+.prose :is(p, li, td, th) {
+  overflow-wrap: break-word;
+}
+
+.prose pre {
+  margin: 0 0 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* a heading a link jumps to clears the sticky navbar */
+.prose :is(h2, h3, h4) {
+  scroll-margin-top: calc(var(--sl-nav-height) + 1rem);
 }
 
 .prose table {
@@ -232,6 +254,14 @@ h6 {
   border-collapse: collapse;
   margin-bottom: 2rem;
   font-size: 0.95rem;
+}
+
+/* up to a tablet, beside the sidebar, a wide table scrolls inside itself instead of widening the page */
+@media (max-width: 1023px) {
+  .prose table {
+    display: block;
+    overflow-x: auto;
+  }
 }
 
 .prose th,
@@ -286,11 +316,21 @@ main:focus {
   outline-offset: 2px;
 }
 
-/* Shiki's github-dark comments are #6a737d, 3:1 on its background; this one is 5.3:1 */
-.astro-code span[style*="#6A737D" i] {
-  /* biome-ignore lint/complexity/noImportantStyles: Shiki sets the colour inline */
+/* Shiki writes both themes into each block: the light one inline, the dark one as --shiki-dark */
+/* biome-ignore-start lint/complexity/noImportantStyles: Shiki sets the colours inline */
+:root[data-theme="dark"] .astro-code,
+:root[data-theme="dark"] .astro-code span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+}
+
+/* github-dark's comments are #6a737d, 3:1 on its background; this one is 5.3:1 */
+:root[data-theme="dark"] .astro-code span[style*="--shiki-dark:#6A737D" i] {
   color: #959da5 !important;
 }
+/* biome-ignore-end lint/complexity/noImportantStyles: Shiki sets the colours inline */
 
 /* biome-ignore-start lint/complexity/noImportantStyles: it must win over every component's own animation */
 @media (prefers-reduced-motion: reduce) {

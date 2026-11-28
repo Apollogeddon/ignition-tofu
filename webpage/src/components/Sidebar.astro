@@ -5,18 +5,23 @@ const docs = await getCollection("docs");
 const base = import.meta.env.BASE_URL;
 const pathname = new URL(Astro.request.url).pathname;
 
-// Optimized organization logic: single pass to group and sort
+// The reference is split as the provider registers it: its own configuration, then resources and data
+// sources, each listed by type name (the group already says which kind it is)
 const sections = [
-  { label: "Guides", prefix: "guides/" },
-  { label: "Reference", prefix: "reference/" },
+  { label: "Guides", match: (id: string) => id.startsWith("guides/") },
+  { label: "Provider", match: (id: string) => id === "reference" || id === "reference/index" },
+  { label: "Resources", match: (id: string) => id.startsWith("reference/resources/") },
+  { label: "Data sources", match: (id: string) => id.startsWith("reference/data-sources/") },
 ]
   .map((section) => ({
     ...section,
     items: docs
-      .filter((d) => d.id.startsWith(section.prefix))
+      .filter((d) => section.match(d.id))
       .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99) || a.data.title.localeCompare(b.data.title)),
   }))
   .filter((section) => section.items.length > 0);
+
+const label = (title: string) => title.replace(/ (Resource|Data Source)$/, "");
 
 /**
  * Checks if a doc link is currently active
@@ -41,7 +46,7 @@ const isActive = (id: string) => {
               class={`sidebar-link ${isActive(item.id) ? 'active' : ''}`}
               aria-current={isActive(item.id) ? 'page' : undefined}
             >
-              {item.data.title}
+              {label(item.data.title)}
             </a>
           </li>
         ))}

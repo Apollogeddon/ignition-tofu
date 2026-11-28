@@ -8,9 +8,9 @@ const base = import.meta.env.BASE_URL;
 
 <nav class="navbar glass" aria-label="Main">
   <div class="nav-container">
-    <a href={`${base}/`} class="site-title">
+    <a href={`${base}/`} class="site-title" aria-label="Ignition Tofu Provider home">
       <Image src={logoImage} alt="" class="nav-logo" width={28} height={28} />
-      <span>Ignition Tofu Provider</span>
+      <span class="site-name">Ignition Tofu Provider</span>
     </a>
 
     <div class="nav-links">
@@ -66,6 +66,19 @@ const base = import.meta.env.BASE_URL;
     gap: 1.5rem;
   }
 
+  .nav-link,
+  .social-link {
+    /* 44px tap targets */
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .social-link {
+    min-width: 44px;
+    justify-content: center;
+  }
+
   .nav-link {
     text-decoration: none;
     color: var(--sl-color-text-muted);
@@ -85,5 +98,20 @@ const base = import.meta.env.BASE_URL;
 
   .social-link:hover {
     color: var(--sl-color-text);
+  }
+
+  /* on a phone the logo stands for the title, so the links fit on one line */
+  @media (max-width: 480px) {
+    .nav-container {
+      padding: 0 1rem;
+    }
+
+    .site-name {
+      display: none;
+    }
+
+    .nav-links {
+      gap: 0.75rem;
+    }
   }
 </style>
