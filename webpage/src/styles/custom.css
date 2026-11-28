@@ -507,7 +507,6 @@ h6 {
   border-radius: 12px !important;
 }
 
-
 /* boxes: flowchart nodes, sequence actors and activations */
 .prose pre.mermaid svg :is(.node, .actor-top, .actor-bottom) :is(rect, circle, ellipse, polygon, path),
 .prose pre.mermaid svg :is(rect.actor, .activation0, .activation1, .activation2, .labelBox) {
