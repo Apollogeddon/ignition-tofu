@@ -188,3 +188,6 @@ webpage/src/content/docs/reference/
 
 # OpenTofu, installed by .github/scripts/install-tofu.sh
 .bin/
+
+# Guides copied from examples/guides/ by migrate-docs.sh
+webpage/src/content/docs/guides/bootstrap-docker.md

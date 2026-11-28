@@ -51,16 +51,16 @@ func (p *IgnitionProvider) Schema(ctx context.Context, req provider.SchemaReques
 		Description: "The Ignition provider allows you to manage Inductive Automation Ignition resources.",
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
-				Description: "The base URL of the Ignition Gateway (e.g., http://localhost:8088).",
+				Description: "The base URL of the Ignition Gateway (e.g., http://localhost:8088). Falls back to the IGNITION_HOST environment variable.",
 				Optional:    true,
 			},
 			"token": schema.StringAttribute{
-				Description: "The API token for authentication.",
+				Description: "The API token for authentication, sent in the X-Ignition-API-Token header. Falls back to the IGNITION_TOKEN environment variable; prefer that, or a sensitive variable, to writing a token into the configuration.",
 				Optional:    true,
 				Sensitive:   true,
 			},
 			"allow_insecure_tls": schema.BoolAttribute{
-				Description: "Whether to allow insecure TLS connections (e.g., self-signed certs).",
+				Description: "Whether to accept a gateway certificate that does not verify (e.g., self-signed). Defaults to false.",
 				Optional:    true,
 			},
 			"request_timeout": schema.Int64Attribute{

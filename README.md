@@ -59,7 +59,8 @@ Then require the provider, and `tofu init` installs it for your platform:
 terraform {
   required_providers {
     ignition = {
-      source = "apollogeddon/ignition"
+      source  = "apollogeddon/ignition"
+      version = "~> 1.3"
     }
   }
 }

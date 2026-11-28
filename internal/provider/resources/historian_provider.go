@@ -64,8 +64,7 @@ func (r *HistorianProviderResource) Metadata(ctx context.Context, req resource.M
 func (r *HistorianProviderResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Manages a historian provider in Ignition 8.3, where tag history is stored. " +
-			"Supports the SQL Historian, which stores history in a database connection; " +
-			"8.1 creates one for each database connection itself.",
+			"Supports the SQL Historian, which stores history in a database connection.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,

@@ -4,7 +4,7 @@ order: 1
 description: How to install and configure the Ignition Terraform Provider.
 ---
 
-This guide shows how to install the `ignition` provider from a GitHub release, connect it to an Ignition gateway, and check that it works.
+This guide shows how to install the `ignition` provider from this site's provider mirror (or a GitHub release), connect it to an Ignition gateway, and check that it works.
 
 ## Requirements
 
@@ -51,15 +51,18 @@ Then declare the provider in your configuration, for example in `versions.tf`:
 terraform {
   required_providers {
     ignition = {
-      source = "apollogeddon/ignition"
+      source  = "apollogeddon/ignition"
+      version = "~> 1.3"
     }
   }
 }
 ```
 
+`~> 1.3` takes any 1.x release from 1.3.0 on, and none from 2.0, which may change the schema. Each release's notes are on the [releases page](https://github.com/apollogeddon/ignition-tofu/releases), and every change is in the [changelog](https://github.com/apollogeddon/ignition-tofu/blob/main/CHANGELOG.md).
+
 Run `tofu init`. It records the provider's checksums in `.terraform.lock.hcl`. To record them for other platforms too, for a team or CI on a different OS, run `tofu providers lock -platform=linux_amd64 -platform=darwin_arm64` with the platforms you use.
 
-The mirror carries checksums but not the GPG signature, so OpenTofu checks each zip against `SHA256SUMS` without verifying the signature. To verify it yourself, check `SHA256SUMS.sig` from the release with `gpg --verify`.
+The mirror carries checksums but not the GPG signature, so OpenTofu checks each zip against `SHA256SUMS` without verifying the signature. Each release also has `SHA256SUMS.sig`, a detached signature of the checksums, for `gpg --verify` once you have the signing key; the public key is not yet published on this site.
 
 ### Use a local filesystem mirror
 
